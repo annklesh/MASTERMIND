@@ -7,7 +7,7 @@ from PySide6.QtCore import Qt
 from PySide6.QtGui import QColor, QPixmap
 
 class MainMenu(QWidget):
-    """Main Menu class for game mode selection"""
+    """Klasa menu głównego odpowiedzialna za wybór trybu rozgrywki."""
     def __init__(self, change_screen_callback):
         super().__init__()
         layout = QVBoxLayout()
@@ -34,10 +34,10 @@ class MainMenu(QWidget):
         title.setGraphicsEffect(glow)
         layout.addWidget(title, alignment=Qt.AlignmentFlag.AlignCenter)
 
-        self.btn_player_vs_comp = QPushButton("Human vs AI")
-        self.btn_player_vs_player = QPushButton("Human vs Hardware")
-        self.btn_comp_vs_player = QPushButton("AI vs Human")
-
+        self.btn_player_vs_comp = QPushButton("Player vs Bot")       # tryb 1: komputer losuje sekretny kod, gracz go odgaduje
+        self.btn_player_vs_player = QPushButton("Player vs Player")  # tryb 2: pierwszy gracz wpisuje kod, drugi gracz odgaduje
+        self.btn_comp_vs_player = QPushButton("Bot vs Player")       # tryb 3: gracz wymyśla i wpisuje kod, a bot go odgaduje
+        
         for btn in [self.btn_player_vs_comp, self.btn_player_vs_player, self.btn_comp_vs_player]:
             btn.setFixedSize(280, 50)
             btn.setCursor(Qt.CursorShape.PointingHandCursor)
@@ -49,6 +49,7 @@ class MainMenu(QWidget):
                     font-size: 16px;
                     font-weight: bold;
                     border-radius: 8px;
+                    text-align: center;
                 }
                 QPushButton:hover {
                     background-color: #00ffff;
@@ -62,17 +63,29 @@ class MainMenu(QWidget):
 
 
 class GameScreen(QWidget):
-    """Main Game Interface class"""
+    """Klasa głównego ekranu rozgrywki (planszy)."""
     def __init__(self, add_glow_method):
         super().__init__()
         self.add_glow_method = add_glow_method
-        
-        # Main horizontal layout for 3 columns
+
+        # Słownik do mapowania kolorów HEX na nazwy dla modułu logiki
+        self.color_mapping = {
+            "#ef4444": "Red",
+            "#ea580c": "Orange",
+            "#eab308": "Yellow",
+            "#22c55e": "Green",
+            "#3b82f6": "Blue",
+            "#a855f7": "Purple"
+        }
+
+        self.selected_colors = []   # lista przechowująca aktualny wybór gracza w rundzie
+
+        # Główny układ poziomy dzielący ekran na 3 kolumny
         hbox_layout = QHBoxLayout(self)
         hbox_layout.setContentsMargins(20, 20, 20, 20)
         hbox_layout.setSpacing(20)
 
-        # 1. LEFT COLUMN (Controls & Rules)
+        # 1. LEWA KOLUMNA (Sterowanie i zasady)
 
         left_panel = QVBoxLayout()
         left_panel.setSpacing(15)
@@ -88,7 +101,7 @@ class GameScreen(QWidget):
         menu_title.setStyleSheet("font-weight: bold; color: #ff007f; font-size: 13px; letter-spacing: 1px; margin-bottom: 5px; background: transparent;")
         menu_layout.addWidget(menu_title)
 
-        for text in ["New Game", "Statistics", "Main Menu"]:
+        for text in ["New Game", "Main Menu"]:
             btn = QPushButton(text)
             btn.setCursor(Qt.CursorShape.PointingHandCursor)
             btn.setFixedHeight(40)
@@ -110,8 +123,16 @@ class GameScreen(QWidget):
         
         rules_title = QLabel("RULES")
         rules_title.setStyleSheet("font-weight: bold; color: #ff007f; font-size: 13px; letter-spacing: 1px; margin-bottom: 5px; background: transparent;")
-        rules_text = QLabel("Guess the secret code of 4 colored pegs.\nAfter each attempt, you get clues:\n\n• Black — right color & right spot\n• White — right color but wrong spot")
-        rules_text.setStyleSheet("color: #a0aec0; font-size: 13px; line-height: 18px; background: transparent;")
+        
+        rules_text = QLabel(
+            "<div style='line-height: 1.6; color: #a0aec0; font-size: 13px;'>"
+            "Guess the secret code of 4 colored pegs.<br>"
+            "After each attempt, you get clues:<br><br>"
+            "• Black — right color, right position.<br>"
+            "• White — right color, wrong position."
+            "</div>"
+        )
+        rules_text.setStyleSheet("background: transparent;")
         rules_text.setWordWrap(True)
         
         rules_layout.addWidget(rules_title)
@@ -121,12 +142,12 @@ class GameScreen(QWidget):
         
         hbox_layout.addLayout(left_panel, 1)
 
-        # 2. CENTRAL COLUMN (Main Board + Palette)
+       # 2. ŚRODKOWA KOLUMNA (Główna plansza prób + Paleta kolorów)
 
         center_area = QVBoxLayout()
         center_area.setSpacing(12)
 
-        # Scroll area for rows to prevent layout distortion
+       # Obszar przewijania rzędów zapobiegający zniekształceniom interfejsu
         scroll_area = QScrollArea()
         scroll_area.setWidgetResizable(True)
         scroll_area.setFrameShape(QScrollArea.Shape.NoFrame)
@@ -161,13 +182,13 @@ class GameScreen(QWidget):
             row_layout.setAlignment(Qt.AlignmentFlag.AlignVCenter)
             row_widget.setStyleSheet("QWidget { background-color: #161925; border-radius: 8px; }")
 
-            # 1. Row number
+            # Numery rzędów na planszy
             num_label = QLabel(f"{row + 1}")
             num_label.setFixedWidth(35)
             num_label.setStyleSheet("color: #4a5568; font-size: 13px; font-weight: bold; background: transparent;")
             row_layout.addWidget(num_label)
             
-            # 2. Four pegs in a row
+            # Cztery otwory na pionki w danym rzędzie
             pegs_layout = QHBoxLayout()
             pegs_layout.setSpacing(12)
             pegs_layout.setAlignment(Qt.AlignmentFlag.AlignVCenter)
@@ -181,10 +202,9 @@ class GameScreen(QWidget):
             self.board_pegs.append(row_pegs_list)
             row_layout.addLayout(pegs_layout)
             
-            # 3. Spacer
             row_layout.addStretch() 
 
-            # 4. Hints strictly aligned
+            # Cztery miniaturowe otwory na podpowiedzi (feedback) dla każdego rzędu
             hints_layout = QHBoxLayout()
             hints_layout.setSpacing(6)
             hints_layout.setAlignment(Qt.AlignmentFlag.AlignVCenter)
@@ -204,7 +224,7 @@ class GameScreen(QWidget):
         scroll_area.setWidget(board_card)
         center_area.addWidget(scroll_area, 1)
 
-        # Input panel "YOUR MOVE"
+        # Panel wyboru aktualnego ruchu "YOUR TURN"
         control_card = QFrame()
         control_card.setObjectName("Card")
         control_layout = QVBoxLayout(control_card)
@@ -242,8 +262,10 @@ class GameScreen(QWidget):
             QPushButton { background-color: #161925; color: #a0aec0; border: 1px solid #2d3748; border-radius: 12px; font-size: 18px; }
             QPushButton:hover { background-color: #1f2336; color: #ffffff; }
         """)
-        bottom_row_layout.addWidget(self.btn_backspace)
 
+        self.btn_backspace.clicked.connect(self._handle_backspace)  # podłączenie funkcji kasowania backspace
+        bottom_row_layout.addWidget(self.btn_backspace)
+    
         self.btn_check_turn = QPushButton("CHECK CODE")
         self.btn_check_turn.setCursor(Qt.CursorShape.PointingHandCursor)
         self.btn_check_turn.setFixedSize(180, 50)
@@ -258,7 +280,7 @@ class GameScreen(QWidget):
         control_layout.addLayout(bottom_row_layout)
         center_area.addWidget(control_card)
 
-        # Color palette
+        # Paleta dostępnych kolorów na samym dole ekranu
         palette_layout = QHBoxLayout()
         palette_layout.setSpacing(12)
         palette_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -270,17 +292,19 @@ class GameScreen(QWidget):
             color_btn.setFixedSize(40, 40)
             color_btn.setStyleSheet(f"QPushButton {{ background-color: {color}; border: none; border-radius: 20px; }} QPushButton:hover {{ border: 3px solid #ffffff; }}")
             self.add_glow_method(color_btn, color, radius=12)
+            
+            # Każdy przycisk palety przekazuje swój kolor po kliknięciu
+            color_btn.clicked.connect(lambda checked=False, c=color: self._handle_color_click(c))
             palette_layout.addWidget(color_btn)
             
         center_area.addLayout(palette_layout)
         hbox_layout.addLayout(center_area, 4)
 
-        # 3. RIGHT COLUMN (Statistics, AI Code)
-
+        # 3. PRAWA KOLUMNA (Statystyki i podgląd kodu bota)
         right_panel = QVBoxLayout()
         right_panel.setSpacing(15)
 
-        # STATISTICS 
+        # Panel Statystyk
         stats_card = QFrame()
         stats_card.setObjectName("Card")
         stats_card.setFixedWidth(280)
@@ -304,12 +328,12 @@ class GameScreen(QWidget):
             row.addStretch()
             return row
 
-        stats_layout.addLayout(create_stat_row("Attempts"))
+        stats_layout.addLayout(create_stat_row("Games"))
         stats_layout.addLayout(create_stat_row("Wins"))
         stats_layout.addLayout(create_stat_row("Best Score"))
         right_panel.addWidget(stats_card)
 
-        # CODE 
+        # Panel ukrytego Kodu 
         code_card = QFrame()
         code_card.setObjectName("Card")
         code_card.setFixedWidth(280)
@@ -320,12 +344,8 @@ class GameScreen(QWidget):
         code_header = QHBoxLayout()
         code_title = QLabel("CODE")
         code_title.setStyleSheet("font-weight: bold; color: #8a8dbe; font-size: 13px; letter-spacing: 1px; background: transparent;")
-        
-        code_icon = self.create_image_icon("lock.png", 18, 18)
-        
         code_header.addWidget(code_title)
         code_header.addStretch()
-        code_header.addWidget(code_icon)
         code_layout.addLayout(code_header)
 
         code_slots_layout = QHBoxLayout()
@@ -359,21 +379,106 @@ class GameScreen(QWidget):
 
 
     def create_image_icon(self, filename, width, height):
-        """Helper method to load images safely from the project folder"""
+        """Metoda pomocnicza do bezpiecznego wczytywania ikon z katalogu projektu."""
         lbl = QLabel()
-        lbl.setStyleSheet("background: transparent;")
+        lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
+
         if os.path.exists(filename):
             pixmap = QPixmap(filename)
             scaled_pixmap = pixmap.scaled(width, height, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)
             lbl.setPixmap(scaled_pixmap)
         else:
             lbl.setText("?")
-            lbl.setStyleSheet("color: #4b5563; font-weight: bold; background: transparent;")
+            lbl.setStyleSheet("""
+                QLabel {
+                    color: #4b5563; 
+                    font-weight: bold; 
+                    font-size: 24px; 
+                    background: transparent; 
+                    border: none;
+                }
+            """)
         return lbl
+    
+    # METODY OBSŁUGI INTERFEJSU GRAFICZNEGO
+
+    def _handle_color_click(self, color_hex: str) -> None:
+        """Dodaje wybrany z palety kolor do wolnego slotu w aktualnym ruchu."""
+        if len(self.selected_colors) < 4:
+            self.selected_colors.append(color_hex)
+            slot_index = len(self.selected_colors) - 1
+            self.current_slots[slot_index].setStyleSheet(
+                f"background-color: {color_hex}; border: none; border-radius: 20px;"
+            )
+            self.add_glow_method(self.current_slots[slot_index], color_hex, radius=10)
+           
+    def _handle_backspace(self) -> None:
+        """Usuwa ostatnio dodany kolor z aktualnego wyboru."""
+        if self.selected_colors:
+            slot_index = len(self.selected_colors) - 1
+            self.selected_colors.pop()
+            self.current_slots[slot_index].setGraphicsEffect(None)
+            self.current_slots[slot_index].setStyleSheet(
+                "background-color: transparent; border: 2px solid #2d3748; border-radius: 20px;"
+            )
+
+    # FUNKCJE DLA APP.PY
+    
+    def get_current_colors(self) -> list[str]:
+        """Zwraca aktualnie wybrane kolory przetłumaczone na nazwy tekstowe dla logiki."""
+        return [self.color_mapping[c] for c in self.selected_colors]
+
+
+    def reset_current_selection(self) -> None:
+        """Czyści wybór w sekcji 'YOUR TURN' przed nową rundą."""
+        self.selected_colors.clear()
+        for slot in self.current_slots:
+            slot.setGraphicsEffect(None)
+            slot.setStyleSheet(
+                "background-color: transparent; border: 2px solid #2d3748; border-radius: 20px;"
+            )
+
+
+    def update_board_row(self, row_index: int, colors: list[str], feedback: tuple[int, int]) -> None:
+        """
+        Zapisuje na stałe ruch gracza w historycznym rzędzie planszy 
+        oraz wyświetla czarne i białe punkty podpowiedzi.
+        """
+        reverse_mapping = {v: k for k, v in self.color_mapping.items()} # odwracamy mapowanie nazw
+        
+        # Kolorujemy 4 kulki w historycznym rzędzie planszy
+        for i, color_name in enumerate(colors):
+            color_hex = reverse_mapping[color_name]
+            self.board_pegs[row_index][i].setStyleSheet(
+                f"background-color: {color_hex}; border: none; border-radius: 17px;"
+            )
+            self.add_glow_method(self.board_pegs[row_index][i], color_hex, radius=8)
+
+        # Wyświetlamy podpowiedzi (czarne i białe kropki)
+        black_pegs, white_pegs = feedback
+        hint_index = 0
+
+        # Czarne kropki (prawidłowe miejsce i kolor)
+        for _ in range(black_pegs):
+            if hint_index < 4:
+                self.board_hints[row_index][hint_index].setStyleSheet(
+                    "background-color: #000000; border: 1px solid #ff007f; border-radius: 6px;"
+                )
+                self.add_glow_method(self.board_hints[row_index][hint_index], "#ff007f", radius=6)
+                hint_index += 1
+
+        # Białe kropki (prawidłowy kolor, złe miejsce)
+        for _ in range(white_pegs):
+            if hint_index < 4:
+                self.board_hints[row_index][hint_index].setStyleSheet(
+                    "background-color: #ffffff; border: 1px solid #00ffff; border-radius: 6px;"
+                )
+                self.add_glow_method(self.board_hints[row_index][hint_index], "#00ffff", radius=6)
+                hint_index += 1
 
 
 class MastermindNeonUI(QMainWindow):
-    """Main Application Window"""
+    """Główne okno aplikacji."""
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Mastermind // Cyberpunk Edition")
@@ -397,9 +502,11 @@ class MastermindNeonUI(QMainWindow):
         self.stacked_widget.setCurrentIndex(0)
 
     def change_screen(self, index):
+        """Zmienia aktualnie wyświetlany ekran aplikacji."""
         self.stacked_widget.setCurrentIndex(index)
 
     def add_glow_effect(self, widget, color_hex, radius=10):
+        """Nadaje elementom interfejsu graficznego neonowy efekt poświaty."""
         glow = QGraphicsDropShadowEffect()
         glow.setBlurRadius(radius)
         glow.setColor(QColor(color_hex))

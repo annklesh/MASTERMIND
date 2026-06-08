@@ -1,6 +1,5 @@
 import random
 
-
 class MastermindLogic:
     
     def __init__(self):
@@ -11,25 +10,20 @@ class MastermindLogic:
 
     
     def generate_secret_code(self) -> list[str]:
-        
-        """Losuje tajną kombinację 4 kolorów z 6 dostępnych (zezwala na powtórzenia)"""
-        
+        """Losuje tajną kombinację 4 kolorów z 6 dostępnych (zezwala na powtórzenia)""" 
         self.secret_code = random.choices(self.available_colors, k=self.code_length)
         return self.secret_code
 
 
     def set_secret_code(self, custom_code: list[str]) -> None: 
-        
         """
         Ustawia sekretny kod podany ręcznie przez użytkownika.
         Niezbędne dla trybów: Człowiek vs Człowiek oraz Komputer vs Człowiek.
         """
-       
         self.secret_code = custom_code
     
     
     def check_guess(self, guess: list[str]) -> tuple[int, int]:
-    
         """
         Porównuje ruch gracza (guess) z tajnym kodem (self.secret_code).
         Zwraca: (czarne_pionki, białe_pionki)
