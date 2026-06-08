@@ -146,7 +146,7 @@ class GameBot:
 
         return correct_place, wrong_place
 
-    def restart_game(self, new_answer: tuple[int, int] | None = None) -> None:
+    def restart_game(self, new_answer=None) -> None:
         """Resetuje stan bota do początkowego dla nowej gry.
 
         Przywraca pełny zbiór możliwych wariantów oraz początkowe przypuszczenie.
