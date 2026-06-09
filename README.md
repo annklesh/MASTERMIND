@@ -18,7 +18,7 @@ bot/                  # Pakiet obsługujący sztuczną inteligencję (GameBot)
 logic/                # Pakiet mechaniki gry (MastermindLogic)
 
 view/                # Pakiet przechowujący pliki interfejsu graficznego (widoki)
-
+ты 
 .gitignore            # Plik konfiguracyjny Gita do ignorowania m.in. cache i venv
 
 README.md             # Dokumentacja projektu (ten plik)
@@ -29,10 +29,17 @@ game_history.txt      # Plik tekstowy przeznaczony na zapis historii rozgrywek
 
 game_stats.py         # Skrypt/Moduł odpowiedzialny za przetwarzanie statystyk
 
-Krok po kroku, jak uruchomić prototyp:
+start_linux.sh        #Skrypt powłoki (Shell) do szybkiego uruchomienia na systemach Linux/macOS
+
+start_windows.bat     #Plik wsadowy (Batch) do szybkiego uruchomienia na systemie Windows
+
+**Krok po kroku, jak uruchomić prototyp:**
 1. Sklonuj lub pobierz repozytorium na swój komputer.
 2. Otwórz terminal / wiersz poleceń w głównym katalogu projektu (tam, gdzie znajduje się plik app.py).
 3. Uruchom aplikację za pomocą następującej komendy: python app.py
+**Szybkie uruchomienie za pomocą skryptów:**
+1. Na systemie Windows: Kliknij dwukrotnie plik start_windows.bat
+2. Na systemach Linux / macOS: Uruchom w terminalu skrypt poleceniem: ./start_linux.sh
 
 ## 3. Instrukcja obsługi i stan obecny prototypu (Usage Guide)
 Aktywne funkcjonalności (Co już działa):
@@ -47,8 +54,3 @@ Klasa MastermindLogic posiada sprawny system losowania 4-elementowego kodu z pul
 Metoda check_guess bezbłędnie porównuje propozycję kodu z sekretem, zwracając precyzyjną liczbę czarnych i białych kołków (informacja zwrotna).
 ### Algorytm AI Bota (Pakiet bot):
 Gotowy zaawansowany bot realizujący algorytm Minimax Knutha. Dzięki zastosowaniu biblioteki multiprocessing, obliczenia kolejnych najlepszych strzałów bota są rozproszone na wiele rdzeni procesora, co zapewnia natychmiastowe działanie.
-
-## 4. Makiety i ograniczenia prototypu
-
-
-
