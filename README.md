@@ -1,56 +1,117 @@
 # MASTERMIND
 Projekt zespołowy. Gra logiczna Mastermind.
 
-## 1. Wymagane biblioteki i środowisko (Prerequisites)
-Projekt opiera się na środowisku uruchomieniowym języka Python oraz zewnętrznym frameworku do obsługi interfejsu graficznego.
-**Język programowania:** Python 3.8 lub nowszy
-**Biblioteki zewnętrzne:** `PySide6`
-**Biblioteki standardowe (wbudowane):** `itertools`, `collections`, `multiprocessing`, `random`, `sys`, `os`.
+## 1. Środowisko i wymagane biblioteki
 
+* **Interpreter**: Python (wersja >= 3.6)
+* **Biblioteki zewnętrzne**: `PySide6`
+* **Biblioteki standardowe**: `itertools`, `collections`, `multiprocessing`, `random`, `sys`, `os`
+  
 ### Instalacja zależności:
-Przed uruchomieniem projektu należy zainstalować bibliotekę PySide6 przy użyciu managera pakietów pip: pip install PySide6
+```bash
+pip install PySide6
+```
+---
+## 2. Instrukcja uruchomienia prototypu
 
-## 2. Struktura plików i Instrukcja uruchomienia (Installation & Running)
-Projekt został zorganizowany w sposób modułowy, dzieląc architekturę na logikę, bota oraz widok:
+### Szybkie uruchomienie automatyczne:
+Skrypty automatycznie tworzą środowisko wirtualne `venv`, instalują wymagane biblioteki i włączają grę.
 
-bot/                  # Pakiet obsługujący sztuczną inteligencję (GameBot)
+* **System Windows**: Kliknij dwukrotnie plik `start_windows.bat`
+* **System Linux / macOS**: Uruchom w terminalu komendę: `./start_linux.sh`
 
-logic/                # Pakiet mechaniki gry (MastermindLogic)
+### Uruchomienie tradycyjne (Ręczne):
+1. Otwórz terminal w głównym katalogu projektu.
+2. Wpisz i zatwierdź komendę:
 
-view/                # Pakiet przechowujący pliki interfejsu graficznego (widoki)
-ты 
-.gitignore            # Plik konfiguracyjny Gita do ignorowania m.in. cache i venv
+```bash
+python app.py
+```
+---
+## 3. Instrukcja użytkowania (Zasady Gry)
 
-README.md             # Dokumentacja projektu (ten plik)
+* **Cel gry**: Odgadnięcie ukrytego 4-kolorowego kodu w maksymalnie 10 próbach. Kolory w kodzie mogą się powtarzać.
+* **Obsługa**: Wybierz kolory z dolnej palety, a następnie zatwierdź pełny wiersz przyciskiem `Check Code`. Użyj przycisku `⌫` (Backspace), aby cofnąć ostatni wybór.
 
-app.py                # Główny punkt wejścia aplikacji (Main Execution File)
+### System podpowiedzi (Informacja zwrotna):
+Po każdym ruchu obok wiersza pojawiają się kołki kontrolne:
 
-game_history.txt      # Plik tekstowy przeznaczony na zapis historii rozgrywek
+* **Czarne kropki**: Wskazują prawidłowy kolor na właściwym miejscu.
+* **Białe kropki**: Wskazują prawidłowy kolor, ale na błędnym miejscu.
 
-game_stats.py         # Skrypt/Moduł odpowiedzialny za przetwarzanie statystyk
+### Dostępne tryby rozgrywki:
+1. **Player vs Bot**: Gracz próbuje odgadnąć losowy kod wygenerowany przez komputer.
+2. **Player vs Player**: Gracz 1 ustawia kod w ukrytym oknie dialogowym, a Gracz 2 odgaduje go na planszy.
+3. **Bot vs Player**: Gracz definiuje kod, a Bot (algorytm Minimax Knutha) automatycznie go odgaduje.
+---
+## 4. Planowany diagram klas UML gotowej aplikacji
 
-start_linux.sh        #Skrypt powłoki (Shell) do szybkiego uruchomienia na systemach Linux/macOS
+```mermaid
+classDiagram
+    class GameManager {
+        +stats: StatsManager
+        +current_round: int
+        +max_rounds: int
+        +current_mode: str
+        +__init__(self, ui_window)
+        #_connect_signals(self)
+        +start_player_vs_comp(self)
+        +start_comp_vs_player(self)
+        +start_player_vs_player(self)
+        +handle_check_button(self)
+    }
 
-start_windows.bat     #Plik wsadowy (Batch) do szybkiego uruchomienia na systemie Windows
+    class MastermindLogic {
+        +available_colors: list
+        +code_length: int
+        +secret_code: list
+        +__init__(self)
+        +generate_secret_code(self) -> list
+        +set_secret_code(self, custom_code: list) -> None
+        +check_guess(self, guess: list) -> tuple
+    }
 
-**Krok po kroku, jak uruchomić prototyp:**
-1. Sklonuj lub pobierz repozytorium na swój komputer.
-2. Otwórz terminal / wiersz poleceń w głównym katalogu projektu (tam, gdzie znajduje się plik app.py).
-3. Uruchom aplikację za pomocą następującej komendy: python app.py
-**Szybkie uruchomienie za pomocą skryptów:**
-1. Na systemie Windows: Kliknij dwukrotnie plik start_windows.bat
-2. Na systemach Linux / macOS: Uruchom w terminalu skrypt poleceniem: ./start_linux.sh
+    class GameBot {
+        +logic_answer: tuple
+        +available_colors: list
+        +code_length: int
+        +set_of_answers: list
+        +new_set_of_colors: list
+        +check_colors: list
+        +check_helps: list
+        +__init__(self, logic_answer: tuple)
+        +check(self, guess: list, target: list) -> tuple
+        +restart_game(self, new_answer: tuple) -> None
+        +get_a_check_to_logic(self) -> list
+        +create_a_new_set_of_colors(self) -> None
+        +make_a_guess(self) -> None
+    }
 
-## 3. Instrukcja obsługi i stan obecny prototypu (Usage Guide)
-Aktywne funkcjonalności (Co już działa):
-### Cyberpunk GUI (Pakiet view & app.py):
-**Menu Główne:** Efektowny ekran startowy z animowanym neonowym napisem "MASTERMIND". Udostępnia przyciski wyboru trybów gry (Player vs Bot, Player vs Player, Bot vs Player). Kliknięcie dowolnego z nich płynnie przełącza widok na ekran planszy.
+    class MastermindNeonUI {
+        +menu_screen: MainMenu
+        +game_screen: GameScreen
+        +__init__(self)
+        +change_screen(self, index: int) -> None
+    }
 
-**Plansza Rozgrywki:** Zawiera przewijany obszar z 10 rzędami na próby odgadnięcia kodu, paletę 6 kolorów na dole oraz boczne panele zasad, statystyk i ukrytego kodu.
+    class MainMenu {
+        +btn_player_vs_comp: QPushButton
+        +btn_player_vs_player: QPushButton
+        +btn_comp_vs_player: QPushButton
+        +__init__(self)
+    }
 
-**Wprowadzanie ruchu użytkownika:** Klikanie kolorowych kulek w palecie powoduje dynamiczne dodawanie ich do sekcji "YOUR TURN" z zachowaniem odpowiedniego koloru HEX i efektu poświaty. Przycisk ⌫ (Backspace) poprawnie usuwa ostatnio wybrany kolor.
-### Logika gry (Pakiet logic):
-Klasa MastermindLogic posiada sprawny system losowania 4-elementowego kodu z puli 6 kolorów (generate_secret_code) oraz możliwość ręcznego ustawienia kodu (set_secret_code).
-Metoda check_guess bezbłędnie porównuje propozycję kodu z sekretem, zwracając precyzyjną liczbę czarnych i białych kołków (informacja zwrotna).
-### Algorytm AI Bota (Pakiet bot):
-Gotowy zaawansowany bot realizujący algorytm Minimax Knutha. Dzięki zastosowaniu biblioteki multiprocessing, obliczenia kolejnych najlepszych strzałów bota są rozproszone na wiele rdzeni procesora, co zapewnia natychmiastowe działanie.
+    class GameScreen {
+        +btn_check_turn: QPushButton
+        +__init__(self)
+        +get_current_colors(self) -> list
+        +update_board_row(self, row: int, colors: list, pegs: tuple) -> None
+        +reset_current_selection(self) -> None
+    }
+
+    GameManager --> MastermindNeonUI : ui
+    GameManager --> MastermindLogic : logic
+    GameManager --> GameBot : bot
+    GameBot --> MastermindLogic : używa ustawień
+    MastermindNeonUI *-- MainMenu : menu_screen
+    MastermindNeonUI *-- GameScreen : game_screen
