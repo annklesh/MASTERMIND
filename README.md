@@ -18,8 +18,11 @@ pip install PySide6
 Skrypty automatycznie tworzą środowisko wirtualne `venv`, instalują wymagane biblioteki i włączają grę.
 
 * **System Windows**: Kliknij dwukrotnie plik `start_windows.bat`
-* **System Linux / macOS**: Uruchom w terminalu komendę: `./start_linux.sh`
-
+* **System Linux / macOS**: Przed pierwszym uruchomieniem nadaj uprawnienia skryptowi, a następnie go odpal:
+```bash
+chmod +x start_linux.sh
+./start_linux.sh
+```
 ### Uruchomienie tradycyjne (Ręczne):
 1. Otwórz terminal w głównym katalogu projektu.
 2. Wpisz i zatwierdź komendę:
