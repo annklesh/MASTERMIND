@@ -1,9 +1,87 @@
 import sys
-from PySide6.QtWidgets import QApplication, QInputDialog, QMessageBox
+from PySide6.QtWidgets import QApplication,QMessageBox, QDialog, QVBoxLayout, QHBoxLayout, QLabel, QFrame, QPushButton
+from PySide6.QtCore import Qt
 from view.game_window import MastermindNeonUI
 from logic.game_logic import MastermindLogic
 from game_stats import StatsManager
 from bot.game_bot import GameBot
+
+class SecretCodeDialog(QDialog):
+    """Okno dialogowe do wizualnego wyboru tajnego kodu."""
+    def __init__(self, parent, add_glow_method):
+        super().__init__(parent)
+        self.add_glow_method = add_glow_method
+        self.setWindowTitle("Set Secret Code")
+        self.setFixedSize(400, 260)
+
+        self.setStyleSheet("""
+            QDialog { background-color: #0d0e15; border: 2px solid #1f2336; border-radius: 12px; }
+            QLabel { font-family: 'Segoe UI', sans-serif; color: #a0aec0; font-size: 14px; }
+        """)
+
+        self.color_mapping = {
+            "#a855f7": "Purple", "#3b82f6": "Blue", "#22c55e": "Green", 
+            "#ea580c": "Orange", "#eab308": "Yellow","#ef4444": "Red"}
+        self.selected_colors = []
+
+        layout = QVBoxLayout(self)
+        layout.setSpacing(20)
+        layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
+
+        self.title_label = QLabel("SELECT 4 COLORS FOR THE SECRET CODE:")
+        self.title_label.setStyleSheet("color: #ff007f; font-weight: bold; font-size: 13px; letter-spacing: 1px;")
+        layout.addWidget(self.title_label, alignment=Qt.AlignmentFlag.AlignCenter)
+
+        # Podgląd aktualnie wybranych slotów
+        self.preview_layout = QHBoxLayout()
+        self.preview_layout.setSpacing(15)
+        self.slots = []
+        for _ in range(4):
+            slot = QFrame()
+            slot.setFixedSize(40, 40)
+            slot.setStyleSheet("background-color: transparent; border: 2px solid #2d3748; border-radius: 20px;")
+            self.preview_layout.addWidget(slot)
+            self.slots.append(slot)
+        layout.addLayout(self.preview_layout)
+
+        # Paleta kolorów do klikania
+        palette_layout = QHBoxLayout()
+        palette_layout.setSpacing(12)
+        for color_hex in self.color_mapping.keys():
+            btn = QPushButton()
+            btn.setCursor(Qt.CursorShape.PointingHandCursor)
+            btn.setFixedSize(36, 36)
+            btn.setStyleSheet(f"QPushButton {{ background-color: {color_hex}; border: none; border-radius: 18px; }} QPushButton:hover {{ border: 2px solid #ffffff; }}")
+            self.add_glow_method(btn, color_hex, radius=10)
+            
+            btn.clicked.connect(lambda checked=False, c=color_hex: self._handle_color_click(c))
+            palette_layout.addWidget(btn)
+        layout.addLayout(palette_layout)
+
+        # Przycisk zatwierdzenia kodu
+        self.btn_confirm = QPushButton("CONFIRM CODE")
+        self.btn_confirm.setEnabled(False)
+        self.btn_confirm.setFixedSize(180, 40)
+        self.btn_confirm.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.btn_confirm.setStyleSheet("""
+            QPushButton { background-color: #1f2336; color: #4a5568; font-weight: bold; border-radius: 8px; border: 1px solid #2d3748; }
+            QPushButton:enabled { background: qlineargradient(spread:pad, x1:0, y1:0, x2:1, y2:0, stop:0 #1e3a8a, stop:1 #6d28d9); color: white; border: none; }
+        """)
+        self.btn_confirm.clicked.connect(self.accept)
+        layout.addWidget(self.btn_confirm, alignment=Qt.AlignmentFlag.AlignCenter)
+
+    def _handle_color_click(self, color_hex):
+        if len(self.selected_colors) < 4:
+            self.selected_colors.append(color_hex)
+            idx = len(self.selected_colors) - 1
+            self.slots[idx].setStyleSheet(f"background-color: {color_hex}; border: none; border-radius: 20px;")
+            self.add_glow_method(self.slots[idx], color_hex, radius=10)
+            
+            if len(self.selected_colors) == 4:
+                self.btn_confirm.setEnabled(True)
+
+    def get_code(self):
+        return [self.color_mapping[c] for c in self.selected_colors]
 
 class GameManager:
     def __init__(self, ui_window):
@@ -38,50 +116,35 @@ class GameManager:
         """Gracz wymyśla kod, a Bot zgaduje."""
         print("Starting mode: Computer vs Player")
         
-        text, ok = QInputDialog.getText(
-            self.ui, 
-            "Your Secret Code", 
-            "Enter 4 colors separated by space\n(Red, Orange, Yellow, Green, Blue, Purple):"
-        )
-        
-        if ok and text:
-            player_secret = [color.strip().capitalize() for color in text.split()]
-            
-            if len(player_secret) != 4:
-                QMessageBox.warning(self.ui, "Error", "You must enter exactly 4 colors!")
-                return
-                
-            self.logic.set_secret_code(player_secret)
-            print(f"Secret code set to: {player_secret}")
-            
+        dialog = SecretCodeDialog(self.ui, self.ui.add_glow_effect)
+        if dialog.exec() == QDialog.DialogCode.Accepted:
+            player_secret = dialog.get_code()
+            player_secret = dialog.get_code()
+            self.logic.secret_code = player_secret
+
             self.bot = GameBot(logic_answer=(0, 0))
-            
             self.current_mode = "CvP"
-            self.current_round = 1
+            self._prepare_new_game()
+            
+            self.ui.game_screen.set_palette_enabled(False) 
+            
             self.ui.change_screen(1)
+            self.ui.game_screen.btn_check_turn.setText("NEXT BOT MOVE")
+            self.execute_bot_turn()
 
     def start_player_vs_player(self):
         """Gracz 1 wymyśla kod, Gracz 2 zgaduje na planszy."""
         print("Starting mode: Player vs Player")
         
-        text, ok = QInputDialog.getText(
-            self.ui, 
-            "Player 1: Set Secret Code", 
-            "Player 1, enter 4 colors separated by space\n(Red, Orange, Yellow, Green, Blue, Purple):"
-        )
-        
-        if ok and text:
-            player_secret = [color.strip().capitalize() for color in text.split()]
+        dialog = SecretCodeDialog(self.ui, self.ui.add_glow_effect)
+        if dialog.exec() == QDialog.DialogCode.Accepted:
+            player_secret = dialog.get_code()
             
-            if len(player_secret) != 4:
-                QMessageBox.warning(self.ui, "Error", "You must enter exactly 4 colors!")
-                return
-                
-            self.logic.set_secret_code(player_secret)
+            self.logic.secret_code = player_secret
             print("Secret code set by Player 1.")
             
             self.current_mode = "PvP"
-            self.current_round = 1
+            self._prepare_new_game()
             self.ui.change_screen(1)
 
     def handle_check_button(self):
