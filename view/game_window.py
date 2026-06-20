@@ -57,7 +57,6 @@ class MainMenu(QWidget):
                 }
             """)
             layout.addWidget(btn, alignment=Qt.AlignmentFlag.AlignCenter)
-            btn.clicked.connect(lambda: change_screen_callback(1))
 
         self.setLayout(layout)
 
@@ -85,7 +84,7 @@ class GameScreen(QWidget):
         hbox_layout.setContentsMargins(20, 20, 20, 20)
         hbox_layout.setSpacing(20)
 
-        # 1. LEWA KOLUMNA (Sterowanie i zasady)
+        ### 1. LEWA KOLUMNA (Sterowanie i zasady)
 
         left_panel = QVBoxLayout()
         left_panel.setSpacing(15)
@@ -142,7 +141,7 @@ class GameScreen(QWidget):
         
         hbox_layout.addLayout(left_panel, 1)
 
-       # 2. ŚRODKOWA KOLUMNA (Główna plansza prób + Paleta kolorów)
+       ### 2. ŚRODKOWA KOLUMNA (Główna plansza prób + Paleta kolorów)
 
         center_area = QVBoxLayout()
         center_area.setSpacing(12)
@@ -204,7 +203,7 @@ class GameScreen(QWidget):
             
             row_layout.addStretch() 
 
-            # Cztery miniaturowe otwory na podpowiedzi (feedback) dla każdego rzędu
+            # Cztery miniaturowe otwory na podpowiedzi dla każdego rzędu
             hints_layout = QHBoxLayout()
             hints_layout.setSpacing(6)
             hints_layout.setAlignment(Qt.AlignmentFlag.AlignVCenter)
@@ -300,7 +299,8 @@ class GameScreen(QWidget):
         center_area.addLayout(palette_layout)
         hbox_layout.addLayout(center_area, 4)
 
-        # 3. PRAWA KOLUMNA (Statystyki i podgląd kodu bota)
+        ### 3. PRAWA KOLUMNA (Statystyki i podgląd kodu bota)
+        
         right_panel = QVBoxLayout()
         right_panel.setSpacing(15)
 
@@ -320,17 +320,30 @@ class GameScreen(QWidget):
         stats_header.addStretch()
         stats_layout.addLayout(stats_header)
 
-        def create_stat_row(text):
+        # Funkcja pomocnicza do tworzenia czystych wierszy tekstowych
+        def create_stat_row(text, is_header=False):
             row = QHBoxLayout()
             lbl_text = QLabel(text)
             lbl_text.setStyleSheet("color: #9ca3af; font-size: 14px; background: transparent; padding: 2px 0;")
+           
+            lbl_val = QLabel("-")
+            lbl_val.setStyleSheet("color: #00ffff; font-size: 14px; font-weight: bold; background: transparent;")
+            
             row.addWidget(lbl_text)
             row.addStretch()
-            return row
+            row.addWidget(lbl_val)
+            stats_layout.addLayout(row)
+            return lbl_text, lbl_val
 
-        stats_layout.addLayout(create_stat_row("Games"))
-        stats_layout.addLayout(create_stat_row("Wins"))
-        stats_layout.addLayout(create_stat_row("Best Score"))
+        self.lbl_games_desc, self.label_games_val = create_stat_row("Games")
+        self.lbl_wins_desc, self.label_wins_val = create_stat_row("Wins")
+        self.lbl_best_desc, self.label_best_val = create_stat_row("Best Score")
+        
+        # Dodatkowy wiersz dla trybu PVP
+        self.lbl_setter_desc, self.label_setter_wins_val = create_stat_row("Setter Wins")
+        self.lbl_setter_desc.setVisible(False)
+        self.label_setter_wins_val.setVisible(False)
+        
         right_panel.addWidget(stats_card)
 
         # Panel ukrytego Kodu 
@@ -428,7 +441,6 @@ class GameScreen(QWidget):
         """Zwraca aktualnie wybrane kolory przetłumaczone na nazwy tekstowe dla logiki."""
         return [self.color_mapping[c] for c in self.selected_colors]
 
-
     def reset_current_selection(self) -> None:
         """Czyści wybór w sekcji 'YOUR TURN' przed nową rundą."""
         self.selected_colors.clear()
@@ -437,7 +449,6 @@ class GameScreen(QWidget):
             slot.setStyleSheet(
                 "background-color: transparent; border: 2px solid #2d3748; border-radius: 20px;"
             )
-
 
     def update_board_row(self, row_index: int, colors: list[str], feedback: tuple[int, int]) -> None:
         """
@@ -476,12 +487,34 @@ class GameScreen(QWidget):
                 self.add_glow_method(self.board_hints[row_index][hint_index], "#00ffff", radius=6)
                 hint_index += 1
 
+    def reset_board(self) -> None:
+        """Resetuje planszę i czyści wszystkie rzędy oraz podpowiedzi."""
+        self.reset_current_selection()
+
+        for row in range(10):
+            for peg in self.board_pegs[row]:
+                peg.setGraphicsEffect(None)
+                peg.setStyleSheet("QFrame { background-color: transparent; border: 2px solid #2d3748; border-radius: 17px; }")
+
+            for hint in self.board_hints[row]:
+                hint.setGraphicsEffect(None)
+                hint.setStyleSheet("QFrame { background-color: transparent; border: 1px solid #4a5568; border-radius: 6px; }")
+
+
+    def setup_ui_for_bot_mode(self, is_bot_mode: bool) -> None:
+        """Dostosowuje interfejs gry (przyciski i tekst) do trybu bota."""
+        if is_bot_mode:
+            self.btn_check_turn.setText("NEXT BOT MOVE")
+            self.btn_backspace.setEnabled(False)
+        else:
+            self.btn_check_turn.setText("CHECK CODE")
+            self.btn_backspace.setEnabled(True)
 
 class MastermindNeonUI(QMainWindow):
     """Główne okno aplikacji."""
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("Mastermind // Cyberpunk Edition")
+        self.setWindowTitle("Mastermind")
         self.resize(1240, 820)
         
         self.setStyleSheet("""
@@ -512,10 +545,3 @@ class MastermindNeonUI(QMainWindow):
         glow.setColor(QColor(color_hex))
         glow.setOffset(0, 0)
         widget.setGraphicsEffect(glow)
-
-
-if __name__ == "__main__":
-    app = QApplication(sys.argv)
-    window = MastermindNeonUI()
-    window.show()
-    sys.exit(app.exec())

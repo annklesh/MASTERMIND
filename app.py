@@ -21,7 +21,7 @@ class SecretCodeDialog(QDialog):
 
         self.color_mapping = {
             "#a855f7": "Purple", "#3b82f6": "Blue", "#22c55e": "Green", 
-            "#ea580c": "Orange", "#eab308": "Yellow","#ef4444": "Red"}
+            "#eab308": "Yellow","#ea580c": "Orange","#ef4444": "Red"}
         self.selected_colors = []
 
         layout = QVBoxLayout(self)
@@ -70,7 +70,8 @@ class SecretCodeDialog(QDialog):
         self.btn_confirm.clicked.connect(self.accept)
         layout.addWidget(self.btn_confirm, alignment=Qt.AlignmentFlag.AlignCenter)
 
-    def _handle_color_click(self, color_hex):
+    def _handle_color_click(self, color_hex: str) -> None:
+        """Dodaje wybrany z palety kolor do wolnego slotu podglądu."""
         if len(self.selected_colors) < 4:
             self.selected_colors.append(color_hex)
             idx = len(self.selected_colors) - 1
@@ -80,8 +81,10 @@ class SecretCodeDialog(QDialog):
             if len(self.selected_colors) == 4:
                 self.btn_confirm.setEnabled(True)
 
-    def get_code(self):
+    def get_code(self) -> list[str]:
+        """Zwraca kod przetłumaczony na nazwy dla logiki."""
         return [self.color_mapping[c] for c in self.selected_colors]
+
 
 class GameManager:
     def __init__(self, ui_window):
@@ -91,8 +94,25 @@ class GameManager:
         self.current_round = 1
         self.max_rounds = 10
         self.current_mode = None
-        
+        self.bot = None
+
         self._connect_signals()
+        self.update_stats_on_screen()
+
+    def update_stats_on_screen(self):
+        """Aktualizuje panel statystyk na podstawie bocznego modułu i trybu."""
+        mode = self.current_mode if self.current_mode in ["PvC", "CvP"] else "PvC"
+        mode_data = self.stats.data.get(mode, {"total_games": 0, "wins": 0, "best_score": None})
+        
+        total_games = mode_data.get("total_games", 0)
+        wins = mode_data.get("wins", 0)
+        best_score = mode_data.get("best_score")
+        if best_score is None:
+            best_score = "-"
+
+        self.ui.game_screen.label_games_val.setText(str(total_games))
+        self.ui.game_screen.label_wins_val.setText(str(wins))
+        self.ui.game_screen.label_best_val.setText(str(best_score))
 
     def _connect_signals(self):
         """Łączenie przycisków z UI do funkcji w tej klasie."""
@@ -106,9 +126,13 @@ class GameManager:
         print("Starting mode: Player vs Computer")
         self.current_mode = "PvC"
         self.current_round = 1
+
+        self.ui.game_screen.reset_board()
+        self.ui.game_screen.setup_ui_for_bot_mode(False)
+        self.update_stats_on_screen()
         
-        secret = self.logic.generate_secret_code()
-        print(f"DEBUG: Secret code is: {secret}")
+        self.logic.secret_code = self.logic.generate_secret_code()
+        print(f"DEBUG: Secret code is: {self.logic.secret_code}")
         
         self.ui.change_screen(1)
 
@@ -116,36 +140,87 @@ class GameManager:
         """Gracz wymyśla kod, a Bot zgaduje."""
         print("Starting mode: Computer vs Player")
         
+        self.ui.change_screen(1)
+        self.ui.game_screen.reset_board()     
+        self.current_mode = "CvP"
+        self.update_stats_on_screen()      
+        self.ui.game_screen.setup_ui_for_bot_mode(True)
+
         dialog = SecretCodeDialog(self.ui, self.ui.add_glow_effect)
         if dialog.exec() == QDialog.DialogCode.Accepted:
             player_secret = dialog.get_code()
-            player_secret = dialog.get_code()
             self.logic.secret_code = player_secret
+            self.current_round = 1
 
-            self.bot = GameBot(logic_answer=(0, 0))
-            self.current_mode = "CvP"
-            self._prepare_new_game()
-            
-            self.ui.game_screen.set_palette_enabled(False) 
-            
-            self.ui.change_screen(1)
-            self.ui.game_screen.btn_check_turn.setText("NEXT BOT MOVE")
+            if self.bot is None:
+                self.bot = GameBot(logic_answer=(0, 0))
+            else:
+                self.bot.restart_game(new_answer=(0, 0))
+
             self.execute_bot_turn()
+        else:
+            self.ui.game_screen.setup_ui_for_bot_mode(False)
+            self.ui.change_screen(0)
 
     def start_player_vs_player(self):
         """Gracz 1 wymyśla kod, Gracz 2 zgaduje na planszy."""
         print("Starting mode: Player vs Player")
         
+        self.ui.change_screen(1)
+        self.ui.game_screen.reset_board()
+        self.ui.game_screen.setup_ui_for_bot_mode(False)
+        self.current_mode = "PvP"
+
+        self.ui.game_screen.label_games_val.setText("-")
+        self.ui.game_screen.label_wins_val.setText("-")
+        self.ui.game_screen.label_best_val.setText("-")
+
         dialog = SecretCodeDialog(self.ui, self.ui.add_glow_effect)
         if dialog.exec() == QDialog.DialogCode.Accepted:
             player_secret = dialog.get_code()
-            
             self.logic.secret_code = player_secret
-            print("Secret code set by Player 1.")
+            self.current_round = 1
+            print(f"Secret code set by Player 1: {player_secret}")
+        else:
+            self.ui.change_screen(0)
             
-            self.current_mode = "PvP"
-            self._prepare_new_game()
-            self.ui.change_screen(1)
+    def execute_bot_turn(self):
+        """Wykonuje automatyczną turę bota i sprawdza stan gry."""
+        print(f"Bot's turn: {self.current_round}")
+        
+        self.bot.make_a_guess()
+        bot_guess_string = self.bot.get_a_check_to_logic()
+        
+        black_pegs, white_pegs = self.logic.check_guess(bot_guess_string)
+        print(f"Bot guessed: {bot_guess_string} | Result: Black={black_pegs}, White={white_pegs}")
+        
+        self.bot.logic_answer = (black_pegs, white_pegs)
+        self.bot.create_a_new_set_of_colors()
+        
+        row_index = self.current_round - 1
+        self.ui.game_screen.update_board_row(row_index, bot_guess_string, (black_pegs, white_pegs))
+        
+        if black_pegs == 4:
+            # Bot odgadł kod -> przekazuje "WIN" i liczbę prób bota
+            self.stats.add_game_result("CvP", "Bot", "WIN", self.current_round)
+            self.update_stats_on_screen()
+
+            QMessageBox.information(self.ui, "Game Over", f"Bot cracked your code in {self.current_round} attempts!")
+            self.ui.game_screen.setup_ui_for_bot_mode(False)
+            self.ui.change_screen(0)
+            return
+            
+        elif self.current_round >= self.max_rounds:
+            # ZABEZPIECZENIE: Teoretycznie niemożliwe dla bota, dodane jako hamulec bezpieczeństwa 
+            self.stats.add_game_result("CvP", "Bot", "LOSS", self.current_round)
+            self.update_stats_on_screen()
+            
+            QMessageBox.information(self.ui, "Game Over", "You won! Bot failed to crack your code.")
+            self.ui.game_screen.setup_ui_for_bot_mode(False)
+            self.ui.change_screen(0)
+            return
+    
+        self.current_round += 1
 
     def handle_check_button(self):
         """Co się dzieje po kliknięciu 'Check Code' na planszy."""
@@ -153,7 +228,6 @@ class GameManager:
             print(f"Player turn: {self.current_round}")
             
             user_guess = self.ui.game_screen.get_current_colors()
-            
             if len(user_guess) < 4:
                 QMessageBox.warning(self.ui, "Warning", "Select 4 colors first!")
                 return 
@@ -167,16 +241,16 @@ class GameManager:
             
             if black_pegs == 4:
                 print("Victory! Code cracked.")
-                self.stats.save_game_result(won=True, rounds=self.current_round)
-        
+                self.stats.add_game_result("PvC", "Player 1", "WIN", self.current_round)
+                self.update_stats_on_screen()
                 QMessageBox.information(self.ui, "Victory!", f"You cracked the code in {self.current_round} attempts!")
                 self.ui.change_screen(0) 
                 return
             
             elif self.current_round >= self.max_rounds:
                 print("Game Over! Out of attempts.")
-                self.stats.save_game_result(won=False, rounds=self.current_round)
-                
+                self.stats.add_game_result("PvC", "Player 1", "WIN", self.current_round)
+                self.update_stats_on_screen()
                 QMessageBox.information(self.ui, "Game Over", "Out of attempts. The computer wins!")
                 self.ui.change_screen(0) 
                 return
@@ -184,37 +258,13 @@ class GameManager:
             self.current_round += 1
 
         elif self.current_mode == "CvP":
-            print(f"Bot's turn: {self.current_round}")
-            
-            self.bot.make_a_guess()
-            
-            bot_guess_string = self.bot.get_a_check_to_logic()
-            
-            black_pegs, white_pegs = self.logic.check_guess(bot_guess_string)
-            print(f"Bot guessed: {bot_guess_string} | Result: Black={black_pegs}, White={white_pegs}")
-            
-            self.bot.logic_answer = (black_pegs, white_pegs)
-            self.bot.create_a_new_set_of_colors()
-            row_index = self.current_round - 1
-            self.ui.game_screen.update_board_row(row_index, bot_guess_string, (black_pegs, white_pegs))
-            
-            if black_pegs == 4:
-                QMessageBox.information(self.ui, "Game Over", f"Bot cracked your code in {self.current_round} attempts!")
-                self.ui.change_screen(0)
-                return
-                
-            elif self.current_round >= self.max_rounds:
-                QMessageBox.information(self.ui, "Game Over", "You won! Bot failed to crack your code.")
-                self.ui.change_screen(0)
-                return
-        
-            self.current_round += 1
+            self.execute_bot_turn()
 
         elif self.current_mode == "PvP":
             print(f"Player 2 turn: {self.current_round}")
             
             user_guess = self.ui.game_screen.get_current_colors()
-            
+
             if len(user_guess) < 4:
                 QMessageBox.warning(self.ui, "Warning", "Select 4 colors first!")
                 return 
