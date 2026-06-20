@@ -92,26 +92,39 @@ class GameScreen(QWidget):
         menu_card = QFrame()
         menu_card.setObjectName("Card")
         menu_card.setFixedWidth(240)
-        menu_layout = QVBoxLayout(menu_card)
-        menu_layout.setContentsMargins(15, 15, 15, 15)
-        menu_layout.setSpacing(10)
+
+        self.menu_layout = QVBoxLayout(menu_card) 
+        self.menu_layout.setContentsMargins(15, 15, 15, 15)
+        self.menu_layout.setSpacing(10)
         
         menu_title = QLabel("CONTROLS")
         menu_title.setStyleSheet("font-weight: bold; color: #ff007f; font-size: 13px; letter-spacing: 1px; margin-bottom: 5px; background: transparent;")
-        menu_layout.addWidget(menu_title)
+        self.menu_layout.addWidget(menu_title)
 
-        for text in ["New Game", "Main Menu"]:
-            btn = QPushButton(text)
+        self.btn_new_game = QPushButton("New Game")
+        self.btn_main_menu = QPushButton("Main Menu")
+
+        for btn in [self.btn_new_game, self.btn_main_menu]:
             btn.setCursor(Qt.CursorShape.PointingHandCursor)
-            btn.setFixedHeight(40)
+            btn.setFixedHeight(48)
             btn.setStyleSheet("""
                 QPushButton {
-                    background-color: #1a1c28; color: #a0aec0; text-align: left;
-                    padding-left: 15px; border: 1px solid #2d3748; font-size: 14px; font-weight: bold; border-radius: 8px;
+                    background-color: #1a1c28; 
+                    color: #a0aec0; 
+                    text-align: left;
+                    padding-left: 15px; 
+                    border: 1px solid #2d3748; 
+                    font-size: 14px; 
+                    font-weight: bold; 
+                    border-radius: 8px;
                 }
-                QPushButton:hover { background-color: #1f2336; color: #00ffff; border: 1px solid #00ffff; }
+                QPushButton:hover { 
+                    background-color: #1f2336; 
+                    color: #ffffff; 
+                    border: 1px solid #ff007f; 
+                }
             """)
-            menu_layout.addWidget(btn)
+            self.menu_layout.addWidget(btn)
         left_panel.addWidget(menu_card)
 
         rules_card = QFrame()
@@ -361,9 +374,9 @@ class GameScreen(QWidget):
         code_header.addStretch()
         code_layout.addLayout(code_header)
 
-        code_slots_layout = QHBoxLayout()
-        code_slots_layout.setSpacing(12)
-        code_slots_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.code_slots_layout = QHBoxLayout()
+        self.code_slots_layout.setSpacing(12)
+        self.code_slots_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
         for _ in range(4):
             lock_slot = QFrame()
@@ -382,9 +395,9 @@ class GameScreen(QWidget):
             slot_lock = self.create_image_icon("lock.png", 34, 34) 
             
             inner_layout.addWidget(slot_lock)
-            code_slots_layout.addWidget(lock_slot)
+            self.code_slots_layout.addWidget(lock_slot)
             
-        code_layout.addLayout(code_slots_layout)
+        code_layout.addLayout(self.code_slots_layout)
         right_panel.addWidget(code_card)
         
         right_panel.addStretch()
@@ -509,6 +522,59 @@ class GameScreen(QWidget):
         else:
             self.btn_check_turn.setText("CHECK CODE")
             self.btn_backspace.setEnabled(True)
+
+    def reveal_secret_code(self, secret_code: list[str]) -> None:
+        """Odsłania tajny kod w panelu 'CODE' po zakończeniu gry."""
+        reverse_mapping = {v: k for k, v in self.color_mapping.items()}
+        
+        while self.code_slots_layout.count():
+            item = self.code_slots_layout.takeAt(0)
+            widget = item.widget()
+            if widget:
+                widget.deleteLater()
+                
+        for color_name in secret_code:
+            color_hex = reverse_mapping[color_name]
+            
+            color_slot = QFrame()
+            color_slot.setFixedSize(52, 52)
+            color_slot.setStyleSheet(
+                f"background-color: {color_hex}; border: 2px solid #2d3748; border-radius: 26px;"
+            )
+            self.add_glow_method(color_slot, color_hex, radius=12)
+            
+            self.code_slots_layout.addWidget(color_slot)
+    
+    def reset_secret_code_panel(self) -> None:
+        """Przywraca pytajniki w panelu ukrytego kodu przed nową grą."""
+        
+        # 1. Usuwamy obecne kolorowe kółka z odsłoniętego kodu
+        while self.code_slots_layout.count():
+            item = self.code_slots_layout.takeAt(0)
+            widget = item.widget()
+            if widget:
+                widget.deleteLater()
+                
+        # 2. Tworzymy na nowo 4 puste sloty
+        for _ in range(4):
+            lock_slot = QFrame()
+            lock_slot.setFixedSize(52, 52)
+            lock_slot.setStyleSheet("""
+                QFrame {
+                    background-color: #161925;
+                    border: 2px solid #2d3748;
+                    border-radius: 12px;
+                }
+            """)
+            
+            inner_layout = QHBoxLayout(lock_slot)
+            inner_layout.setContentsMargins(4, 4, 4, 4)
+            inner_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            
+            slot_lock = self.create_image_icon("lock.png", 34, 34)
+            inner_layout.addWidget(slot_lock)
+            
+            self.code_slots_layout.addWidget(lock_slot)
 
 class MastermindNeonUI(QMainWindow):
     """Główne okno aplikacji."""

@@ -1,0 +1,92 @@
+{
+    "PvC": {
+        "total_games": 8,
+        "wins": 8,
+        "best_score": 8
+    },
+    "PvP": {
+        "total_games": 4,
+        "wins_setter": 0,
+        "wins_guesser": 4,
+        "best_score": 1
+    },
+    "CvP": {
+        "total_games": 0,
+        "wins": 0,
+        "best_score": null
+    },
+    "history": [
+        {
+            "game_mode": "PvC",
+            "player": "Player 1",
+            "result": "WIN",
+            "attempts": 8
+        },
+        {
+            "game_mode": "PvC",
+            "player": "Player 1",
+            "result": "WIN",
+            "attempts": 10
+        },
+        {
+            "game_mode": "PvC",
+            "player": "Player 1",
+            "result": "WIN",
+            "attempts": 10
+        },
+        {
+            "game_mode": "PvC",
+            "player": "Player 1",
+            "result": "WIN",
+            "attempts": 10
+        },
+        {
+            "game_mode": "PvC",
+            "player": "Player 1",
+            "result": "WIN",
+            "attempts": 10
+        },
+        {
+            "game_mode": "PvC",
+            "player": "Player 1",
+            "result": "WIN",
+            "attempts": 10
+        },
+        {
+            "game_mode": "PvC",
+            "player": "Player 1",
+            "result": "WIN",
+            "attempts": 10
+        },
+        {
+            "game_mode": "PvP",
+            "player": "Player 2",
+            "result": "WIN_GUESSER",
+            "attempts": 4
+        },
+        {
+            "game_mode": "PvP",
+            "player": "Player 2",
+            "result": "WIN_GUESSER",
+            "attempts": 1
+        },
+        {
+            "game_mode": "PvP",
+            "player": "Player 2",
+            "result": "WIN_GUESSER",
+            "attempts": 1
+        },
+        {
+            "game_mode": "PvP",
+            "player": "Player 2",
+            "result": "WIN_GUESSER",
+            "attempts": 5
+        },
+        {
+            "game_mode": "PvC",
+            "player": "Player 1",
+            "result": "WIN",
+            "attempts": 10
+        }
+    ]
+}

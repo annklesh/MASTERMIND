@@ -128,20 +128,40 @@ class GameManager:
         self.current_round = 1
 
         self.ui.game_screen.reset_board()
+        self.ui.game_screen.reset_secret_code_panel()
         self.ui.game_screen.setup_ui_for_bot_mode(False)
         self.update_stats_on_screen()
         
         self.logic.secret_code = self.logic.generate_secret_code()
         print(f"DEBUG: Secret code is: {self.logic.secret_code}")
         
+        try:
+            self.ui.game_screen.btn_new_game.clicked.disconnect()
+            self.ui.game_screen.btn_main_menu.clicked.disconnect()
+        except:
+            pass
+        
+        self.ui.game_screen.btn_new_game.clicked.connect(self.restart_current_mode)
+        self.ui.game_screen.btn_main_menu.clicked.connect(self.return_to_main_menu)
+       
         self.ui.change_screen(1)
 
     def start_comp_vs_player(self):
         """Gracz wymyśla kod, a Bot zgaduje."""
         print("Starting mode: Computer vs Player")
         
+        try:
+            self.ui.game_screen.btn_new_game.clicked.disconnect()
+            self.ui.game_screen.btn_main_menu.clicked.disconnect()
+        except:
+            pass
+        
+        self.ui.game_screen.btn_new_game.clicked.connect(self.restart_current_mode)
+        self.ui.game_screen.btn_main_menu.clicked.connect(self.return_to_main_menu)
+        
         self.ui.change_screen(1)
-        self.ui.game_screen.reset_board()     
+        self.ui.game_screen.reset_board()
+        self.ui.game_screen.reset_secret_code_panel()     
         self.current_mode = "CvP"
         self.update_stats_on_screen()      
         self.ui.game_screen.setup_ui_for_bot_mode(True)
@@ -165,9 +185,19 @@ class GameManager:
     def start_player_vs_player(self):
         """Gracz 1 wymyśla kod, Gracz 2 zgaduje na planszy."""
         print("Starting mode: Player vs Player")
+
+        try:
+            self.ui.game_screen.btn_new_game.clicked.disconnect()
+            self.ui.game_screen.btn_main_menu.clicked.disconnect()
+        except:
+            pass
+        
+        self.ui.game_screen.btn_new_game.clicked.connect(self.restart_current_mode)
+        self.ui.game_screen.btn_main_menu.clicked.connect(self.return_to_main_menu)
         
         self.ui.change_screen(1)
         self.ui.game_screen.reset_board()
+        self.ui.game_screen.reset_secret_code_panel()
         self.ui.game_screen.setup_ui_for_bot_mode(False)
         self.current_mode = "PvP"
 
@@ -214,7 +244,8 @@ class GameManager:
             # ZABEZPIECZENIE: Teoretycznie niemożliwe dla bota, dodane jako hamulec bezpieczeństwa 
             self.stats.add_game_result("CvP", "Bot", "LOSS", self.current_round)
             self.update_stats_on_screen()
-            
+            self.ui.game_screen.reveal_secret_code(self.logic.secret_code)
+            QApplication.processEvents()
             QMessageBox.information(self.ui, "Game Over", "You won! Bot failed to crack your code.")
             self.ui.game_screen.setup_ui_for_bot_mode(False)
             self.ui.change_screen(0)
@@ -251,6 +282,8 @@ class GameManager:
                 print("Game Over! Out of attempts.")
                 self.stats.add_game_result("PvC", "Player 1", "WIN", self.current_round)
                 self.update_stats_on_screen()
+                self.ui.game_screen.reveal_secret_code(self.logic.secret_code)
+                QApplication.processEvents()
                 QMessageBox.information(self.ui, "Game Over", "Out of attempts. The computer wins!")
                 self.ui.change_screen(0) 
                 return
@@ -281,11 +314,26 @@ class GameManager:
                 return
             
             elif self.current_round >= self.max_rounds:
+                self.ui.game_screen.reveal_secret_code(self.logic.secret_code)
+                QApplication.processEvents()
                 QMessageBox.information(self.ui, "Game Over", "Player 1 wins! Player 2 is out of attempts.")
                 self.ui.change_screen(0)
                 return
             
             self.current_round += 1
+
+    def return_to_main_menu(self) -> None:
+        """Wychodzi z obecnej gry do menu głównego."""
+        self.ui.change_screen(0) 
+
+    def restart_current_mode(self) -> None:
+        """Szybki restart obecnego trybu gry po kliknięciu 'New Game'."""
+        if self.current_mode == "PvC":
+            self.start_player_vs_comp()
+        elif self.current_mode == "CvP":
+            self.start_comp_vs_player()
+        elif self.current_mode == "PvP":
+            self.start_player_vs_player()
 
 if __name__ == '__main__':
     app = QApplication(sys.argv)
