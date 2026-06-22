@@ -11,13 +11,13 @@ from bot.game_bot import GameBot
 
 
 class SecretCodeDialog(QDialog):
-    """Dialog window for visually selecting the secret code."""
+    """Okno dialogowe do wizualnego wyboru tajnego kodu przez gracza."""
 
-    def __init__(self, parent, add_glow_method):
+    def __init__(self, parent: MastermindNeonUI, add_glow_method) -> None:
+        """Inicjalizuje okno dialogowe wyboru kodu."""
         super().__init__(parent)
         self.add_glow_method = add_glow_method
         self.setWindowTitle("Set Secret Code")
-        # FIX #3: increased height to accommodate the new backspace button
         self.setFixedSize(400, 310)
 
         self.setStyleSheet("""
@@ -25,7 +25,7 @@ class SecretCodeDialog(QDialog):
             QLabel  { font-family: 'Segoe UI', sans-serif; color: #a0aec0; font-size: 14px; }
         """)
 
-        self.color_mapping = {
+        self.color_mapping: dict[str, str] = {
             "#a855f7": "Purple",
             "#3b82f6": "Blue",
             "#22c55e": "Green",
@@ -45,7 +45,6 @@ class SecretCodeDialog(QDialog):
         )
         layout.addWidget(title_label, alignment=Qt.AlignmentFlag.AlignCenter)
 
-        # Preview slots for the currently selected code
         preview_layout = QHBoxLayout()
         preview_layout.setSpacing(15)
         self.slots: list[QFrame] = []
@@ -59,7 +58,6 @@ class SecretCodeDialog(QDialog):
             self.slots.append(slot)
         layout.addLayout(preview_layout)
 
-        # Color palette
         palette_layout = QHBoxLayout()
         palette_layout.setSpacing(12)
         for color_hex in self.color_mapping:
@@ -75,7 +73,6 @@ class SecretCodeDialog(QDialog):
             palette_layout.addWidget(btn)
         layout.addLayout(palette_layout)
 
-        # FIX #3: Backspace button — lets the user undo the last colour pick
         self.btn_backspace = QPushButton("⌫ Undo")
         self.btn_backspace.setEnabled(False)
         self.btn_backspace.setFixedSize(110, 30)
@@ -92,7 +89,6 @@ class SecretCodeDialog(QDialog):
         self.btn_backspace.clicked.connect(self._handle_backspace)
         layout.addWidget(self.btn_backspace, alignment=Qt.AlignmentFlag.AlignCenter)
 
-        # Confirm button
         self.btn_confirm = QPushButton("CONFIRM CODE")
         self.btn_confirm.setEnabled(False)
         self.btn_confirm.setFixedSize(180, 40)
@@ -112,7 +108,7 @@ class SecretCodeDialog(QDialog):
         layout.addWidget(self.btn_confirm, alignment=Qt.AlignmentFlag.AlignCenter)
 
     def _handle_color_click(self, color_hex: str) -> None:
-        """Adds the chosen colour to the next free preview slot."""
+        """Dodaje wybrany kolor do sekwencji kodu szyfrującego."""
         if len(self.selected_colors) < 4:
             self.selected_colors.append(color_hex)
             idx = len(self.selected_colors) - 1
@@ -120,16 +116,17 @@ class SecretCodeDialog(QDialog):
                 f"background-color: {color_hex}; border: none; border-radius: 20px;"
             )
             self.add_glow_method(self.slots[idx], color_hex, radius=10)
-            self.btn_backspace.setEnabled(True)   # FIX #3: enable undo as soon as ≥1 colour chosen
+            self.btn_backspace.setEnabled(True)
 
             if len(self.selected_colors) == 4:
                 self.btn_confirm.setEnabled(True)
 
     def _handle_backspace(self) -> None:
-        """Removes the last chosen colour from the preview (FIX #3)."""
+        """Usuwa ostatnio wybrany kolor z podglądu."""
         if self.selected_colors:
             self.selected_colors.pop()
             idx = len(self.selected_colors)
+            self.slots[idx].setGraphicsEffect(None)
             self.slots[idx].setStyleSheet(
                 "background-color: transparent; border: 2px solid #2d3748; border-radius: 20px;"
             )
@@ -137,73 +134,73 @@ class SecretCodeDialog(QDialog):
             self.btn_backspace.setEnabled(bool(self.selected_colors))
 
     def get_code(self) -> list[str]:
-        """Returns the selected colours translated to names for game logic."""
+        """Zwraca ostatecznie skompletowany kod szyfrujący dla logiki gry."""
         return [self.color_mapping[c] for c in self.selected_colors]
 
 
-class GameManager:
-    def __init__(self, ui_window):
-        self.ui = ui_window
-        self.logic = MastermindLogic()
-        self.stats = StatsManager()
-        self.current_round = 1
-        self.max_rounds = 10
-        self.current_mode: str | None = None
-        self.bot: GameBot | None = None
+class MastermindApp:
+    """Główny kontroler aplikacji Mastermind łączący interfejs użytkownika z logiką gry."""
 
-        self._connect_signals()
+    def __init__(self) -> None:
+        """Inicjalizuje główne komponenty aplikacji i menedżerów."""
+        self.ui: MastermindNeonUI = MastermindNeonUI()
+        self.logic: MastermindLogic = MastermindLogic()
+        self.stats: StatsManager = StatsManager()
+        self.bot: GameBot = GameBot(logic_answer=(0, 0))
+
+        self.current_mode: str | None = None
+        self.current_round: int = 1
+        self.max_rounds: int = 10
+
+        self.setup_connections()
         self.update_stats_on_screen()
 
     def update_stats_on_screen(self) -> None:
-        """Updates the stats panel according to the current game mode."""
-        # FIX #6: PvP stats are set to "-" manually in start_player_vs_player;
-        # calling this method for PvP would incorrectly show PvC numbers.
+        """Aktualizuje panel statystyk na ekranie gry dla trybów Solo oraz PVP."""
         if self.current_mode == "PvP":
+            pvp_data = self.stats.data.get("PvP", {"total_games": 0, "wins_setter": 0, "wins_guesser": 0, "best_score": None})
+            self.ui.game_screen.label_games_val.setText(str(pvp_data.get("total_games", 0)))
+            self.ui.game_screen.label_setter_wins_val.setText(str(pvp_data.get("wins_setter", 0)))
+            self.ui.game_screen.label_guesser_wins_val.setText(str(pvp_data.get("wins_guesser", 0)))
+            best_score = pvp_data.get("best_score")
+            self.ui.game_screen.label_guesser_best_val.setText(str(best_score) if best_score is not None else "-")
             return
 
         mode = self.current_mode if self.current_mode in ("PvC", "CvP") else "PvC"
-        mode_data = self.stats.data.get(
-            mode, {"total_games": 0, "wins": 0, "best_score": None}
-        )
+        mode_data = self.stats.data.get(mode, {"total_games": 0, "wins": 0, "best_score": None})
 
-        total_games = mode_data.get("total_games", 0)
-        wins = mode_data.get("wins", 0)
+        self.ui.game_screen.label_games_val.setText(str(mode_data.get("total_games", 0)))
+        self.ui.game_screen.label_wins_val.setText(str(mode_data.get("wins", 0)))
         best_score = mode_data.get("best_score")
-        best_display = str(best_score) if best_score is not None else "-"
+        self.ui.game_screen.label_best_val.setText(str(best_score) if best_score is not None else "-")
 
-        self.ui.game_screen.label_games_val.setText(str(total_games))
-        self.ui.game_screen.label_wins_val.setText(str(wins))
-        self.ui.game_screen.label_best_val.setText(best_display)
-
-    def _connect_signals(self) -> None:
-        """Connects menu/game UI buttons to GameManager methods."""
+    def setup_connections(self) -> None:
+        """Łączy sygnały interfejsu z odpowiednimi metodami kontrolera."""
         self.ui.menu_screen.btn_player_vs_comp.clicked.connect(self.start_player_vs_comp)
         self.ui.menu_screen.btn_comp_vs_player.clicked.connect(self.start_comp_vs_player)
         self.ui.menu_screen.btn_player_vs_player.clicked.connect(self.start_player_vs_player)
         self.ui.game_screen.btn_check_turn.clicked.connect(self.handle_check_button)
 
     def _disconnect_game_buttons(self) -> None:
-        """Safely disconnects in-game button signals to prevent duplicate connections.
-        FIX #4: replaced bare 'except:' with 'except RuntimeError:'.
-        """
+        """Bezpiecznie odłącza stare połączenia przycisków przed zmianą trybu."""
         for btn in (self.ui.game_screen.btn_new_game, self.ui.game_screen.btn_main_menu):
             try:
                 btn.clicked.disconnect()
             except RuntimeError:
-                pass  # signal had no connections — harmless
+                pass
 
     def start_player_vs_comp(self) -> None:
-        """Classic mode: Player guesses the computer-generated code."""
+        """Inicjuje tryb rozgrywki Gracz vs Komputer (PvC)."""
         self.current_mode = "PvC"
         self.current_round = 1
 
         self.ui.game_screen.reset_board()
         self.ui.game_screen.reset_secret_code_panel()
         self.ui.game_screen.setup_ui_for_bot_mode(False)
+        self.ui.game_screen.set_pvp_mode(False)
         self.update_stats_on_screen()
 
         self.logic.secret_code = self.logic.generate_secret_code()
-        # FIX #5: removed DEBUG print that exposed the secret code in the console
 
         self._disconnect_game_buttons()
         self.ui.game_screen.btn_new_game.clicked.connect(self.restart_current_mode)
@@ -212,7 +209,7 @@ class GameManager:
         self.ui.change_screen(1)
 
     def start_comp_vs_player(self) -> None:
-        """Player sets the code; the bot attempts to guess it."""
+        """Inicjuje tryb rozgrywki Komputer vs Gracz (CvP)."""
         self._disconnect_game_buttons()
         self.ui.game_screen.btn_new_game.clicked.connect(self.restart_current_mode)
         self.ui.game_screen.btn_main_menu.clicked.connect(self.return_to_main_menu)
@@ -221,6 +218,7 @@ class GameManager:
         self.ui.game_screen.reset_board()
         self.ui.game_screen.reset_secret_code_panel()
         self.current_mode = "CvP"
+        self.ui.game_screen.set_pvp_mode(False)
         self.update_stats_on_screen()
         self.ui.game_screen.setup_ui_for_bot_mode(True)
 
@@ -229,22 +227,14 @@ class GameManager:
             player_secret = dialog.get_code()
             self.logic.secret_code = player_secret
             self.current_round = 1
-
-            if self.bot is None:
-                self.bot = GameBot(logic_answer=(0, 0))
-            else:
-                # FIX #7: was using keyword 'new_answer', inconsistent with the
-                # 'logic_answer' attribute name used everywhere else.
-                # Verify this matches the signature in bot/game_bot.py.
-                self.bot.restart_game(logic_answer=(0, 0))
-
+            self.bot.restart_game(new_answer=(0, 0))
             self.execute_bot_turn()
         else:
             self.ui.game_screen.setup_ui_for_bot_mode(False)
             self.ui.change_screen(0)
 
     def start_player_vs_player(self) -> None:
-        """Player 1 sets the code; Player 2 guesses on the board."""
+        """Inicjuje tryb rozgrywki Gracz vs Gracz (PvP)."""
         self._disconnect_game_buttons()
         self.ui.game_screen.btn_new_game.clicked.connect(self.restart_current_mode)
         self.ui.game_screen.btn_main_menu.clicked.connect(self.return_to_main_menu)
@@ -254,10 +244,8 @@ class GameManager:
         self.ui.game_screen.reset_secret_code_panel()
         self.ui.game_screen.setup_ui_for_bot_mode(False)
         self.current_mode = "PvP"
-
-        self.ui.game_screen.label_games_val.setText("-")
-        self.ui.game_screen.label_wins_val.setText("-")
-        self.ui.game_screen.label_best_val.setText("-")
+        self.ui.game_screen.set_pvp_mode(True)
+        self.update_stats_on_screen()
 
         dialog = SecretCodeDialog(self.ui, self.ui.add_glow_effect)
         if dialog.exec() == QDialog.DialogCode.Accepted:
@@ -268,7 +256,7 @@ class GameManager:
             self.ui.change_screen(0)
 
     def execute_bot_turn(self) -> None:
-        """Executes one automated bot turn and evaluates the game state."""
+        """Obsługuje pełną sekwencję wykonania ruchu przez bota."""
         self.bot.make_a_guess()
         bot_guess_string = self.bot.get_a_check_to_logic()
 
@@ -292,8 +280,6 @@ class GameManager:
             return
 
         elif self.current_round >= self.max_rounds:
-            # Safety guard — Knuth's minimax always solves in ≤5 guesses;
-            # this branch should never be reached in practice.
             self.stats.add_game_result("CvP", "Bot", "LOSS", self.current_round)
             self.update_stats_on_screen()
             self.ui.game_screen.reveal_secret_code(self.logic.secret_code)
@@ -306,31 +292,38 @@ class GameManager:
         self.current_round += 1
 
     def handle_check_button(self) -> None:
-        """Handles the 'Check Code' button click on the game board."""
+        """Przetwarza ruch gracza po zatwierdzeniu wybranej kombinacji."""
         if self.current_mode == "PvC":
             user_guess = self.ui.game_screen.get_current_colors()
             if len(user_guess) < 4:
                 QMessageBox.warning(self.ui, "Warning", "Select 4 colors first!")
                 return
 
+            print(f"\n=== RUNDA №{self.current_round}")
+            print(f"Wprowadzony kod: {user_guess}")
+
             black_pegs, white_pegs = self.logic.check_guess(user_guess)
+
+            print(f"Wynik -> Czarne: {black_pegs}, Białe: {white_pegs}")
+            print("====================================")
 
             row_index = self.current_round - 1
             self.ui.game_screen.update_board_row(row_index, user_guess, (black_pegs, white_pegs))
             self.ui.game_screen.reset_current_selection()
 
             if black_pegs == 4:
-                self.stats.add_game_result("PvC", "Player 1", "WIN", self.current_round)
+                self.stats.add_game_result("PvP", "Player 2", "WIN_GUESSER", self.current_round)
                 self.update_stats_on_screen()
+                self.ui.game_screen.reveal_secret_code(self.logic.secret_code)
+                QApplication.processEvents()
                 QMessageBox.information(
-                    self.ui, "Victory!",
-                    f"You cracked the code in {self.current_round} attempt(s)!"
+                    self.ui, "Game Over",
+                    f"Codebreaker (Guesser) wins! Code cracked in {self.current_round} attempt(s)."
                 )
                 self.ui.change_screen(0)
                 return
 
             elif self.current_round >= self.max_rounds:
-                # FIX #1: was saving "WIN" even though the player lost (ran out of attempts).
                 self.stats.add_game_result("PvC", "Player 1", "LOSS", self.current_round)
                 self.update_stats_on_screen()
                 self.ui.game_screen.reveal_secret_code(self.logic.secret_code)
@@ -350,30 +343,38 @@ class GameManager:
                 QMessageBox.warning(self.ui, "Warning", "Select 4 colors first!")
                 return
 
+            print(f"\n=== PvP RUNDA №{self.current_round} ===")
+            print(f"Gracz 2 wpisał: {user_guess}")
+
             black_pegs, white_pegs = self.logic.check_guess(user_guess)
+
+            print(f"Wynik -> Czarne: {black_pegs}, Białe: {white_pegs}")
+            print("====================================")
 
             row_index = self.current_round - 1
             self.ui.game_screen.update_board_row(row_index, user_guess, (black_pegs, white_pegs))
             self.ui.game_screen.reset_current_selection()
 
             if black_pegs == 4:
-                # FIX #2: PvP results were never saved to stats at all.
                 self.stats.add_game_result("PvP", "Player 2", "WIN_GUESSER", self.current_round)
+                self.update_stats_on_screen()
+                self.ui.game_screen.reveal_secret_code(self.logic.secret_code)
+                QApplication.processEvents()
                 QMessageBox.information(
                     self.ui, "Game Over",
-                    f"Player 2 wins! Code cracked in {self.current_round} attempt(s)."
+                    f"Codebreaker wins! Code cracked in {self.current_round} attempt(s)."
                 )
                 self.ui.change_screen(0)
                 return
 
             elif self.current_round >= self.max_rounds:
-                # FIX #2: PvP results were never saved to stats at all.
                 self.stats.add_game_result("PvP", "Player 1", "WIN_SETTER", self.current_round)
+                self.update_stats_on_screen()
                 self.ui.game_screen.reveal_secret_code(self.logic.secret_code)
                 QApplication.processEvents()
                 QMessageBox.information(
                     self.ui, "Game Over",
-                    "Player 1 wins! Player 2 is out of attempts."
+                    "Codemaker wins! Codebreaker is out of attempts."
                 )
                 self.ui.change_screen(0)
                 return
@@ -381,11 +382,11 @@ class GameManager:
             self.current_round += 1
 
     def return_to_main_menu(self) -> None:
-        """Returns to the main menu from the current game."""
+        """Wychodzi z obecnej gry do menu głównego."""
         self.ui.change_screen(0)
 
     def restart_current_mode(self) -> None:
-        """Restarts the current game mode when 'New Game' is clicked."""
+        """Szybki restart obecnego trybu gry po kliknięciu 'New Game'."""
         if self.current_mode == "PvC":
             self.start_player_vs_comp()
         elif self.current_mode == "CvP":
@@ -396,7 +397,6 @@ class GameManager:
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
-    main_window = MastermindNeonUI()
-    manager = GameManager(main_window)
-    main_window.show()
+    main_window = MastermindApp()
+    main_window.ui.show()
     sys.exit(app.exec())

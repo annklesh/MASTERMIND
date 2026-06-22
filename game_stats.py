@@ -3,43 +3,44 @@ import os
 
 
 class StatsManager:
-    """Stats manager responsible for persistent game history stored as JSON."""
+    """Menedżer statystyk odpowiedzialny za trwałą historię gier zapisaną w formacie JSON."""
 
     def __init__(self, filename: str = "game_history.json"):
         self.filename = filename
-        # Default structure split by game mode
+        # Domyślna struktura podzielona na tryby gry
         self.data: dict = {
             "PvC": {
                 "total_games": 0,
                 "wins": 0,
-                "best_score": None,   # fewest attempts by the player to crack the code
+                "best_score": None,   # najmniejsza liczba prób gracza na złamanie kodu
             },
             "PvP": {
                 "total_games": 0,
-                "wins_setter": 0,     # wins for Player 1 (code setter)
-                "wins_guesser": 0,    # wins for Player 2 (guesser)
-                "best_score": None,   # best score for the guesser only
+                "wins_setter": 0,     # wygrane Gracza 1 (ustawiającego kod)
+                "wins_guesser": 0,    # wygrane Gracza 2 (odgadującego kod)
+                "best_score": None,   # najlepszy wynik tylko dla osoby odgadującej
             },
             "CvP": {
                 "total_games": 0,
                 "wins": 0,
-                "best_score": None,   # fewest attempts for the bot to crack the code
+                "best_score": None,   # najmniejsza liczba prób bota na złamanie kodu
             },
-            "history": [],            # flat log of every completed game
+            "history": [],            # płaski log każdej zakończonej gry
         }
         self.load_statistics()
 
     def load_statistics(self) -> None:
-        """Loads statistics from the JSON file on disk."""
+        """Wczytuje statystyki z pliku JSON na dysku."""
         if os.path.exists(self.filename):
             try:
                 with open(self.filename, "r", encoding="utf-8") as f:
                     self.data = json.load(f)
             except json.JSONDecodeError:
-                print("[StatsManager] JSON file is corrupted — starting with empty statistics.")
+                #print("[StatsManager] JSON file is corrupted — starting with empty statistics.")
+                pass
 
     def save_statistics(self) -> None:
-        """Persists current statistics to disk."""
+        """Zapisuje aktualne statystyki na dysku."""
         with open(self.filename, "w", encoding="utf-8") as f:
             json.dump(self.data, f, indent=4, ensure_ascii=False)
 
@@ -50,42 +51,38 @@ class StatsManager:
         result: str,
         attempts: int,
     ) -> None:
-        """Records the outcome of a finished game.
+        """Zapisuje wynik zakończonej rozgrywki.
 
-        Args:
+        Argumenty:
             game_mode:   "PvC" | "CvP" | "PvP"
-            player_name: Display name of the player or bot
-            result:      "WIN" / "LOSS"          for PvC / CvP
-                         "WIN_GUESSER" / "WIN_SETTER"  for PvP
-            attempts:    Number of rounds played in this game
+            player_name: Wyświetlana nazwa gracza lub bota
+            result:      "WIN" / "LOSS"                dla PvC / CvP
+                         "WIN_GUESSER" / "WIN_SETTER"  dla PvP
+            attempts:    Liczba rund rozegranych w tej grze
         """
-        # FIX #9: validate the mode so a typo never silently corrupts the data
+        # walidacja trybu, aby literówka nigdy po cichu nie uszkodziła danych
         if game_mode not in ("PvC", "PvP", "CvP"):
-            print(f"[StatsManager] Unknown game mode '{game_mode}' — result not saved.")
+            print(f"[StatsManager] Nieznany tryb gry '{game_mode}' — wynik nie został zapisany.")
             return
 
         mode_data = self.data[game_mode]
         mode_data["total_games"] += 1
 
         if game_mode == "PvP":
-            # FIX #8: the original comment was at wrong indentation (looked like dead code)
-            # PvP distinguishes two win types
+            # PvP rozróżnia dwa typy wygranych
             if result == "WIN_GUESSER":
                 mode_data["wins_guesser"] += 1
                 if mode_data["best_score"] is None or attempts < mode_data["best_score"]:
                     mode_data["best_score"] = attempts
             elif result == "WIN_SETTER":
                 mode_data["wins_setter"] += 1
-            # Any other PvP result: total_games already incremented above
-
         else:
-            # Standard WIN / LOSS logic for PvC and CvP
+            # Standardowa logika WIN / LOSS dla PvC i CvP
             if result == "WIN":
                 mode_data["wins"] += 1
                 if mode_data["best_score"] is None or attempts < mode_data["best_score"]:
                     mode_data["best_score"] = attempts
-            # LOSS: total_games already incremented; wins and best_score stay unchanged
-
+                
         new_entry = {
             "game_mode": game_mode,
             "player": player_name,
