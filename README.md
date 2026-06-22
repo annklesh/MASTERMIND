@@ -42,6 +42,8 @@ Po każdym ruchu obok wiersza pojawiają się kołki kontrolne:
 * **Czarne kropki**: Wskazują prawidłowy kolor na właściwym miejscu.
 * **Białe kropki**: Wskazują prawidłowy kolor, ale na błędnym miejscu.
 
+_**Uwaga:** Kolejność kropek kontrolnych jest losowa i nie odpowiada pozycji kolorów w Twojej próbie. Kropki informują jedynie o ogólnej liczbie trafień._
+
 ### Dostępne tryby rozgrywki:
 1. **Player vs Bot**: Gracz próbuje odgadnąć losowy kod wygenerowany przez komputer.
 2. **Player vs Player**: Gracz 1 ustawia kod w ukrytym oknie dialogowym, a Gracz 2 odgaduje go na planszy.
