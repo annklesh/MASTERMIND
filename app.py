@@ -1,4 +1,5 @@
 import sys
+import os
 from PySide6.QtWidgets import (
     QApplication, QMessageBox, QDialog, QVBoxLayout, QHBoxLayout,
     QLabel, QFrame, QPushButton
@@ -9,6 +10,9 @@ from logic.game_logic import MastermindLogic
 from game_stats import StatsManager
 from bot.game_bot import GameBot
 
+import warnings
+warnings.filterwarnings("ignore", category=RuntimeWarning, message=".*Failed to disconnect.*")
+os.environ["QT_LOGGING_RULES"] = "qt.qpa.fonts.warning=false"
 
 class SecretCodeDialog(QDialog):
     """Okno dialogowe do wizualnego wyboru tajnego kodu przez gracza."""
@@ -138,7 +142,7 @@ class SecretCodeDialog(QDialog):
         return [self.color_mapping[c] for c in self.selected_colors]
 
 
-class MastermindApp:
+class GameManager:
     """Główny kontroler aplikacji Mastermind łączący interfejs użytkownika z logiką gry."""
 
     def __init__(self) -> None:
@@ -220,6 +224,7 @@ class MastermindApp:
         self.current_mode = "CvP"
         self.ui.game_screen.set_pvp_mode(False)
         self.update_stats_on_screen()
+        
         self.ui.game_screen.setup_ui_for_bot_mode(True)
 
         dialog = SecretCodeDialog(self.ui, self.ui.add_glow_effect)
@@ -271,6 +276,7 @@ class MastermindApp:
         if black_pegs == 4:
             self.stats.add_game_result("CvP", "Bot", "WIN", self.current_round)
             self.update_stats_on_screen()
+            self.ui.game_screen.reveal_secret_code(self.logic.secret_code)
             QMessageBox.information(
                 self.ui, "Game Over",
                 f"Bot cracked your code in {self.current_round} attempt(s)!"
@@ -299,7 +305,7 @@ class MastermindApp:
                 QMessageBox.warning(self.ui, "Warning", "Select 4 colors first!")
                 return
 
-            print(f"\n=== RUNDA №{self.current_round}")
+            print(f"\n=== PvC RUNDA №{self.current_round} ===")
             print(f"Wprowadzony kod: {user_guess}")
 
             black_pegs, white_pegs = self.logic.check_guess(user_guess)
@@ -312,13 +318,13 @@ class MastermindApp:
             self.ui.game_screen.reset_current_selection()
 
             if black_pegs == 4:
-                self.stats.add_game_result("PvP", "Player 2", "WIN_GUESSER", self.current_round)
+                self.stats.add_game_result("PvC", "Player 1", "WIN", self.current_round)
                 self.update_stats_on_screen()
                 self.ui.game_screen.reveal_secret_code(self.logic.secret_code)
                 QApplication.processEvents()
                 QMessageBox.information(
-                    self.ui, "Game Over",
-                    f"Codebreaker (Guesser) wins! Code cracked in {self.current_round} attempt(s)."
+                    self.ui, "Victory!",
+                    f"Victory! Code cracked in {self.current_round} attempt(s)."
                 )
                 self.ui.change_screen(0)
                 return

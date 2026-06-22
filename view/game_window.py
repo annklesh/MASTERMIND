@@ -635,9 +635,51 @@ class GameScreen(QWidget):
         if is_bot_mode:
             self.btn_check_turn.setText("NEXT BOT MOVE")
             self.btn_backspace.setEnabled(False)
+            
+            # Ukrywanie przycisku usuwania
+            self.btn_backspace.setVisible(False)
+            
+            # Ukrywanie okrągłych przycisków kolorów z palety
+            for widget in self.findChildren(QPushButton):
+                if widget != self.btn_check_turn and widget.objectName() not in ["btn_new_game", "btn_main_menu"]:
+                    if widget.height() == 40 and widget.width() == 40: # przyciski palety kolorów
+                        widget.setVisible(False)
+                        
+            # Ukrywanie wewnętrznych slotów ramki "YOUR TURN"
+            for frame in self.findChildren(QFrame):
+                if frame.findChild(QLabel) and "YOUR TURN" in frame.findChild(QLabel).text():
+                    for child in frame.findChildren(QFrame):
+                        if child != frame:
+                            child.setVisible(False)
+                    if frame.findChild(QLabel):
+                        frame.findChild(QLabel).setVisible(False)
+            
+            # Centrowanie i rozszerzanie przycisku ruchu bota
+                    if frame.layout():
+                        frame.layout().setAlignment(Qt.AlignmentFlag.AlignCenter)
+
+            self.btn_check_turn.setMinimumWidth(280)
+            self.btn_check_turn.setMaximumWidth(400)
         else:
             self.btn_check_turn.setText("CHECK CODE")
             self.btn_backspace.setEnabled(True)
+            self.btn_backspace.setVisible(True)
+            
+            # Przywracanie widoczności przycisków palety kolorów
+            for widget in self.findChildren(QPushButton):
+                widget.setVisible(True)
+                
+            # Przywracanie widoczności slotów wejściowych wewnątrz ramek
+            for frame in self.findChildren(QFrame):
+                if frame.findChild(QLabel) and "YOUR TURN" in frame.findChild(QLabel).text():
+                    for child in frame.findChildren(QFrame):
+                        child.setVisible(True)
+                    if frame.findChild(QLabel):
+                        frame.findChild(QLabel).setVisible(True)
+                        
+            # Przywracanie domyślnych wymiarów przycisku gracza
+            self.btn_check_turn.setMinimumWidth(180)
+            self.btn_check_turn.setMaximumWidth(180)
 
     def reveal_secret_code(self, secret_code: list[str]) -> None:
         """
@@ -656,13 +698,27 @@ class GameScreen(QWidget):
         color_name: str
         for color_name in secret_code:
             color_hex: str = reverse_mapping[color_name]
-            color_slot: QFrame = QFrame()
-            color_slot.setFixedSize(52, 52)
-            color_slot.setStyleSheet(
-                f"background-color: {color_hex}; border: 2px solid #2d3748; border-radius: 26px;"
+            
+            lock_slot: QFrame = QFrame()
+            lock_slot.setFixedSize(52, 52)
+            lock_slot.setStyleSheet(
+                "QFrame { background-color: #161925; border: 2px solid #2d3748; border-radius: 12px; }"
             )
-            self.add_glow_method(color_slot, color_hex, 12)
-            self.code_slots_layout.addWidget(color_slot)
+
+            inner_layout: QHBoxLayout = QHBoxLayout(lock_slot)
+            inner_layout.setContentsMargins(0, 0, 0, 0)
+            inner_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            
+            color_circle: QFrame = QFrame()
+            color_circle.setFixedSize(40, 40)
+            color_circle.setStyleSheet(
+                f"background-color: {color_hex}; border: none; border-radius: 20px;"
+            )
+            
+            self.add_glow_method(color_circle, color_hex, 12)
+            inner_layout.addWidget(color_circle)
+            
+            self.code_slots_layout.addWidget(lock_slot)
     
     def reset_secret_code_panel(self) -> None:
         """Przywraca ikony kłódek (pytajniki) w panelu ukrytego kodu przed rozpoczęciem nowej rozgrywki."""
