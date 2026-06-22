@@ -1,4 +1,0 @@
-Status: Wygrana, Rundy: 5
-Status: Przegrana, Rundy: 10
-Status: Wygrana, Rundy: 10
-Status: Wygrana, Rundy: 8
