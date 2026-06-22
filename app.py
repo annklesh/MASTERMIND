@@ -400,9 +400,8 @@ class GameManager:
         elif self.current_mode == "PvP":
             self.start_player_vs_player()
 
-
 if __name__ == "__main__":
     app = QApplication(sys.argv)
-    main_window = MastermindApp()
+    main_window = GameManager()
     main_window.ui.show()
     sys.exit(app.exec())

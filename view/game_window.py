@@ -790,9 +790,8 @@ class MastermindNeonUI(QMainWindow):
         glow.setOffset(0, 0)
         widget.setGraphicsEffect(glow)
 
-
-if __name__ == "__main__":
-    app: QApplication = QApplication(sys.argv)
-    window: MastermindNeonUI = MastermindNeonUI()
-    window.show()
-    sys.exit(app.exec())
+# if __name__ == "__main__":
+#     app: QApplication = QApplication(sys.argv)
+#     window: MastermindNeonUI = MastermindNeonUI()
+#     window.show()
+#     sys.exit(app.exec())
