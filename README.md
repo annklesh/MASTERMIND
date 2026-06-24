@@ -42,95 +42,123 @@ Po każdym ruchu obok wiersza pojawiają się kołki kontrolne:
 * **Czarne kropki**: Wskazują prawidłowy kolor na właściwym miejscu.
 * **Białe kropki**: Wskazują prawidłowy kolor, ale na błędnym miejscu.
 
-_**Uwaga:** Kolejność kropek kontrolnych jest losowa i nie odpowiada pozycji kolorów w Twojej próbie. Kropki informują jedynie o ogólnej liczbie trafień._
+_**Uwaga!** Kolejność kropek kontrolnych jest losowa i nie odpowiada pozycji kolorów w Twojej próbie. Kropki informują jedynie o ogólnej liczbie trafień._
 
 ### Dostępne tryby rozgrywki:
 1. **Player vs Bot**: Gracz próbuje odgadnąć losowy kod wygenerowany przez komputer.
 2. **Player vs Player**: Gracz 1 ustawia kod w ukrytym oknie dialogowym, a Gracz 2 odgaduje go na planszy.
 3. **Bot vs Player**: Gracz definiuje kod, a Bot (algorytm Minimax Knutha) automatycznie go odgaduje.
 ---
-## 4. Planowany diagram klas UML gotowej aplikacji
+## 4. Diagram klas UML gotowej aplikacji
 
 ```mermaid
 classDiagram
-    class GameManager {
-        +stats: StatsManager
-        +current_round: int
-        +max_rounds: int
-        +current_mode: str
-        +__init__(ui_window: MastermindNeonUI) -> None
-        #_connect_signals() -> None
-        +start_player_vs_comp() -> None
-        +start_comp_vs_player() -> None
-        +start_player_vs_player() -> None
-        +handle_check_button() -> None
-        +restart_current_game() -> None
-        +return_to_main_menu() -> None
-    }
+direction TB
 
-    class MastermindLogic {
-        +available_colors: list[str]
-        +code_length: int
-        +secret_code: list[str]
-        +__init__() -> None
-        +generate_secret_code() -> list[str]
-        +set_secret_code(custom_code: list[str]) -> None
-        +check_guess(guess: list[str]) -> tuple[int, int]
-    }
+class GameManager {
+    - MastermindNeonUI ui
+    - MastermindLogic logic
+    - StatsManager stats
+    - GameBot bot
+    - Optional~str~ current_mode
+    - int current_round
+    - int max_rounds
+    + update_stats_on_screen()
+    + setup_connections()
+    - _disconnect_game_buttons()
+    + start_player_vs_comp()
+    + start_comp_vs_player()
+    + start_player_vs_player()
+    + execute_bot_turn()
+    + handle_check_button()
+    + return_to_main_menu()
+    + restart_current_mode()
+}
 
-    class GameBot {
-        +set_of_answers: list[list[str]]
-        +check_helps: list[tuple[int, int]]
-        +__init__() -> None
-        +make_a_guess(logic: MastermindLogic) -> list[str]
-    }
+class MastermindLogic {
+    - list~str~ available_colors
+    - int code_length
+    - list~str~ secret_code
+    + generate_secret_code() list~str~
+    + set_secret_code(custom_code)
+    + check_guess(guess) tuple
+}
 
-    class StatsManager {
-        +history_file: str
-        +__init__() -> None
-        #_load_json() -> dict
-        #_save_json(data: dict) -> None
-        +save_game_result(mode: str, rounds: int, won: bool) -> None
-        +get_statistics() -> dict[str, int]
-    }
+class GameBot {
+    - tuple logic_answer
+    - list~str~ available_colors
+    - int code_length
+    - list set_of_answers
+    - list new_set_of_colors
+    - list~str~ check_colors
+    + check(guess, target) tuple
+    + restart_game(new_answer)
+    + get_a_check_to_logic() list~str~
+    + create_a_new_set_of_colors()
+    + make_a_guess()
+}
 
-    class MastermindNeonUI {
-        +menu_screen: MainMenu
-        +game_screen: GameScreen
-        +__init__() -> None
-        +change_screen(index: int) -> None
-    }
+class StatsManager {
+    - str filename
+    - dict data
+    + load_statistics()
+    + save_statistics()
+    + add_game_result(game_mode, player_name, result, attempts)
+}
 
-    class MainMenu {
-        +btn_player_vs_comp: QPushButton
-        +btn_player_vs_player: QPushButton
-        +btn_comp_vs_player: QPushButton
-        +__init__() -> None
-    }
+class MastermindNeonUI {
+    - QStackedWidget stacked_widget
+    - GameScreen game_screen
+    - MainMenu menu_screen
+    + change_screen(index)
+    + add_glow_effect(widget, color_hex, radius)
+}
 
-    class GameScreen {
-        +btn_check_turn: QPushButton
-        +__init__() -> None
-        +get_current_colors() -> list[str]
-        +update_board_row(row: int, colors: list[str], pegs: tuple[int, int]) -> None
-        +reset_current_selection() -> None
-    }
+class MainMenu {
+    - Callable change_screen_callback
+    - Optional~Callable~ set_pvp_callback
+    - QPushButton btn_player_vs_comp
+    - QPushButton btn_player_vs_player
+    - QPushButton btn_comp_vs_player
+    - _handle_mode_selection(is_pvp)
+}
 
-    class SecretCodeDialog {
-        +color_mapping: dict[str, str]
-        +selected_colors: list[str]
-        +slots: list[QFrame]
-        +__init__(parent: QWidget, add_glow_method: Callable) -> None
-    }
+class GameScreen {
+    - dict color_mapping
+    - list~str~ selected_colors
+    - list board_pegs
+    - list board_hints
+    - list current_slots
+    + set_pvp_mode(is_pvp)
+    + get_current_colors() list~str~
+    + reset_current_selection()
+    + update_board_row(row_index, colors, feedback)
+    + reset_board()
+    + setup_ui_for_bot_mode(is_bot_mode)
+    + reveal_secret_code(secret_code)
+    + reset_secret_code_panel()
+}
 
-    GameManager  --> MastermindNeonUI
-    GameManager  --> MastermindLogic
-    GameManager --> GameBot
-    GameManager -->  StatsManager
-    MastermindNeonUI *--> MainMenu
-    MastermindNeonUI *--> GameScreen
-    GameScreen ..> SecretCodeDialog : <<uses>>
-    GameBot ..> MastermindLogic : <<uses>>
+class SecretCodeDialog {
+    - dict color_mapping
+    - list~str~ selected_colors
+    - list slots
+    + get_code() list~str~
+    - _handle_color_click(color_hex)
+    - _handle_backspace()
+}
+
+GameManager *-- MastermindNeonUI : controls UI
+GameManager *-- MastermindLogic : uses logic
+GameManager *-- StatsManager : saves statistics
+GameManager *-- GameBot : controls bot
+GameManager ..> SecretCodeDialog : opens dialog
+
+MastermindNeonUI *-- MainMenu : contains
+MastermindNeonUI *-- GameScreen : contains
+
+MainMenu ..> GameScreen : sets PvP mode
+GameBot ..> MastermindLogic : uses game settings
 ```
 ---
 ## 4. Zaktualizowany plan działania 
